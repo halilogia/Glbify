@@ -1,13 +1,28 @@
 <!DOCTYPE html>
 <html lang="tr">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>3D Model Dönüştürücü (Ultimate)</title>
+    <title>Glbify - 3D Converter & Viewer</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        body { margin: 0; overflow: hidden; background-color: #111; color: white; font-family: 'Segoe UI', sans-serif; }
-        #canvas-container { width: 100vw; height: 100vh; display: block; }
+        /* Ana Tema: Koyu ve Yeşil Vurgular */
+        body {
+            margin: 0;
+            overflow: hidden;
+            background-color: #121212;
+            color: white;
+            font-family: 'Inter', system-ui, sans-serif;
+        }
+
+        #canvas-container {
+            width: 100vw;
+            height: 100vh;
+            display: block;
+            background: radial-gradient(circle at center, #1a1a1a 0%, #000000 100%);
+        }
+
         #ui-layer {
             position: absolute;
             top: 0;
@@ -19,42 +34,125 @@
             flex-direction: column;
             justify-content: space-between;
         }
-        .interactive { pointer-events: auto; }
-        
+
+        .interactive {
+            pointer-events: auto;
+        }
+
+        /* Modern Cam Efekti (Glassmorphism) */
+        .glass-panel {
+            background: rgba(20, 20, 20, 0.85);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 16px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+        }
+
+        /* Glbify Brand Style */
+        .brand-text {
+            background: linear-gradient(to right, #4ade80, #22c55e);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            letter-spacing: -0.5px;
+        }
+
+        /* Drop Zone */
         #drop-zone {
             position: absolute;
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%);
-            border: 2px dashed #444;
-            background: rgba(0,0,0,0.85);
-            padding: 40px;
-            border-radius: 12px;
+            border: 2px dashed #333;
+            background: rgba(0, 0, 0, 0.8);
+            padding: 50px;
+            border-radius: 20px;
             text-align: center;
-            transition: all 0.3s ease;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
             z-index: 10;
-            min-width: 300px;
+            min-width: 360px;
         }
-        #drop-zone.active { border-color: #3b82f6; background: rgba(59, 130, 246, 0.2); }
-        #drop-zone.hidden { display: none; }
 
-        .spinner {
-            border: 4px solid rgba(255, 255, 255, 0.1);
-            width: 36px;
-            height: 36px;
-            border-radius: 50%;
-            border-left-color: #3b82f6;
-            animation: spin 1s linear infinite;
-            margin: 0 auto 10px;
+        #drop-zone:hover {
+            border-color: #4ade80;
+            transform: translate(-50%, -52%);
+            box-shadow: 0 20px 50px rgba(74, 222, 128, 0.1);
         }
-        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-        
-        .glass-panel {
-            background: rgba(30, 30, 30, 0.85);
-            backdrop-filter: blur(10px);
+
+        #drop-zone.active {
+            border-color: #22c55e;
+            background: rgba(34, 197, 94, 0.1);
+        }
+
+        #drop-zone.hidden {
+            display: none;
+        }
+
+        /* Spinner */
+        .spinner {
+            border: 3px solid rgba(255, 255, 255, 0.1);
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            border-left-color: #4ade80;
+            animation: spin 0.8s linear infinite;
+            margin: 0 auto 16px;
+        }
+
+        @keyframes spin {
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+
+        /* Butonlar */
+        .btn-primary {
+            background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
+            transition: all 0.2s;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(34, 197, 94, 0.3);
+        }
+
+        .btn-secondary {
+            background: rgba(255, 255, 255, 0.05);
             border: 1px solid rgba(255, 255, 255, 0.1);
+            color: #ccc;
+            transition: all 0.2s;
+        }
+
+        .btn-secondary:hover {
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+        }
+
+        /* Select Input Style */
+        .custom-select {
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: white;
+            padding: 8px 12px;
             border-radius: 8px;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+            outline: none;
+            font-size: 0.85rem;
+            cursor: pointer;
+            transition: border 0.2s;
+        }
+
+        .custom-select:hover {
+            border-color: rgba(74, 222, 128, 0.5);
+        }
+
+        .custom-select option {
+            background: #222;
+            color: white;
         }
     </style>
     <!-- Import Map -->
@@ -66,59 +164,157 @@
             }
         }
     </script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;800&display=swap" rel="stylesheet">
 </head>
+
 <body>
 
     <div id="canvas-container"></div>
 
     <div id="ui-layer">
         <!-- Header -->
-        <div class="p-4 flex justify-between items-start interactive">
-            <div class="glass-panel p-4 max-w-md">
-                <h1 class="text-xl font-bold text-blue-400 flex items-center gap-2">
-                    3D Converter Ultimate
-                </h1>
-                <p class="text-xs text-gray-400 mt-1">KTX2, Draco, Meshopt, Animasyon destekli.</p>
-                <div id="file-info" class="hidden mt-3 pt-3 border-t border-gray-600 text-sm">
-                    <div class="flex justify-between items-center mb-1">
-                        <span class="text-gray-300">Dosya:</span> 
-                        <span id="filename-display" class="font-mono text-yellow-400">...</span>
+        <div class="p-6 flex justify-between items-start interactive">
+            <div class="glass-panel p-5 min-w-[280px]">
+                <div class="flex items-center gap-3 mb-1">
+                    <!-- Glbify Logo Icon -->
+                    <div
+                        class="w-10 h-10 bg-green-500 rounded-xl flex items-center justify-center shadow-lg shadow-green-500/20">
+                        <span class="text-black font-black text-xl">G</span>
                     </div>
-                    <div id="anim-info" class="text-xs text-green-400 hidden">• Animasyon Aktif</div>
-                    <div id="debug-info" class="text-xs text-orange-400 mt-1"></div>
+                    <div>
+                        <h1 class="text-3xl font-extrabold brand-text tracking-tight">Glbify</h1>
+                    </div>
+                </div>
+                <p class="text-xs text-gray-500 font-medium pl-1 tracking-wide">FBX TO GLB & OBJ CONVERTER</p>
+
+                <div id="file-info" class="hidden mt-4 pt-4 border-t border-gray-800 text-sm">
+                    <div class="flex flex-col gap-1">
+                        <span class="text-gray-500 text-[10px] uppercase font-bold tracking-widest">Yüklü Model</span>
+                        <span id="filename-display"
+                            class="font-mono text-green-400 font-medium text-base truncate">model.fbx</span>
+                    </div>
+                    <div id="anim-badge" class="mt-3 flex items-center gap-2 text-green-400 text-xs hidden">
+                        <span class="relative flex h-2 w-2">
+                            <span
+                                class="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                            <span class="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
+                        </span>
+                        Animasyon Oynatılıyor
+                    </div>
+                    <div id="debug-info" class="text-[10px] text-gray-600 mt-2 font-mono"></div>
                 </div>
             </div>
-            
-            <div class="glass-panel p-2 flex gap-2">
-                <button onclick="window.location.reload()" class="bg-red-600 hover:bg-red-700 text-white px-3 py-1 rounded text-sm transition">Sıfırla</button>
-            </div>
+
+            <button onclick="window.location.reload()"
+                class="glass-panel px-4 py-2 text-sm text-gray-400 hover:text-white hover:bg-white/5 transition flex items-center gap-2 group">
+                <svg class="w-4 h-4 text-gray-500 group-hover:text-white transition" fill="none" stroke="currentColor"
+                    viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15">
+                    </path>
+                </svg>
+                Sıfırla
+            </button>
         </div>
 
         <!-- Drop Zone -->
         <div id="drop-zone" class="interactive">
             <div id="drop-content">
-                <svg class="w-16 h-16 mx-auto text-blue-500 mb-4 opacity-80" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path></svg>
-                <h2 class="text-xl font-bold mb-2">Dosya Yükle</h2>
-                <p class="text-sm text-gray-400 mb-6">FBX, GLB, GLTF</p>
+                <div
+                    class="w-24 h-24 mx-auto bg-gradient-to-br from-green-500/20 to-transparent rounded-full flex items-center justify-center mb-6 border border-green-500/20">
+                    <svg class="w-10 h-10 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12">
+                        </path>
+                    </svg>
+                </div>
+                <h2 class="text-3xl font-bold mb-2 text-white">Modelini Bırak</h2>
+                <p class="text-sm text-gray-400 mb-8 font-light">Glbify senin için dönüştürsün ve göstersin.</p>
+
                 <input type="file" id="file-input" class="hidden" accept=".fbx,.glb,.gltf">
-                <button onclick="document.getElementById('file-input').click()" class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg w-full">Seç</button>
+                <button onclick="document.getElementById('file-input').click()"
+                    class="btn-primary text-white px-8 py-4 rounded-xl font-bold text-lg w-full shadow-xl">Dosya
+                    Seç</button>
+
+                <div
+                    class="flex justify-center gap-4 mt-6 text-[10px] text-gray-600 font-bold uppercase tracking-widest">
+                    <span>FBX</span>
+                    <span class="text-gray-700">•</span>
+                    <span>GLB</span>
+                    <span class="text-gray-700">•</span>
+                    <span>GLTF</span>
+                </div>
             </div>
             <div id="loading-content" class="hidden">
                 <div class="spinner"></div>
-                <p class="text-blue-300">Model Çözümleniyor...</p>
-                <p class="text-xs text-gray-500 mt-2">Bu işlem dosya boyutuna göre sürebilir.</p>
+                <h3 class="text-xl font-bold text-white mb-1">Glbify İşliyor...</h3>
+                <p class="text-sm text-gray-400">Materyaller ve dokular işleniyor</p>
             </div>
         </div>
 
         <!-- Export Controls -->
-        <div id="controls" class="p-6 flex justify-center gap-4 interactive transition-all duration-500 opacity-0 translate-y-10 pointer-events-none">
-            <div class="glass-panel p-4 flex gap-4 items-center border-t-4 border-blue-500">
-                <button id="btn-export-glb" class="bg-green-600 hover:bg-green-700 text-white px-5 py-3 rounded-lg font-bold flex items-center gap-2">
-                    GLB İndir
-                </button>
-                <button id="btn-export-obj" class="bg-orange-600 hover:bg-orange-700 text-white px-5 py-3 rounded-lg font-bold flex items-center gap-2">
-                    OBJ İndir
-                </button>
+        <div id="controls"
+            class="p-8 flex flex-col items-center justify-end interactive transition-all duration-500 opacity-0 translate-y-10 pointer-events-none w-full bottom-0 absolute">
+            <div class="glass-panel p-4 flex flex-col gap-4 items-center mb-6 max-w-2xl">
+                <!-- Unit Settings -->
+                <div class="flex items-center gap-4 w-full border-b border-gray-700 pb-4 mb-1">
+                    <div class="flex items-center gap-2 text-gray-400 text-sm">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M19.428 15.428a2 2 0 00-1.022-.547l-2.384-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z">
+                            </path>
+                        </svg>
+                        <span>Hedef Yazılım / Birim:</span>
+                    </div>
+                    <select id="scale-selector" class="custom-select flex-1">
+                        <option value="1">Blender / Unity / Godot (Metre - 1x)</option>
+                        <option value="100">3ds Max / Unreal Engine (Santimetre - 100x)</option>
+                        <option value="0.01">Özel: Metre -> Küçük (0.01x)</option>
+                    </select>
+                </div>
+
+                <!-- Action Buttons -->
+                <div class="flex gap-3 w-full justify-center">
+                    <button id="btn-export-glb"
+                        class="btn-primary px-8 py-3 rounded-xl font-bold flex items-center gap-3 flex-1 justify-center">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
+                        </svg>
+                        <div>
+                            <div class="text-[10px] font-normal opacity-80 uppercase tracking-wider">TAVSİYE EDİLEN
+                            </div>
+                            <div class="text-sm">GLB İndir</div>
+                        </div>
+                    </button>
+
+                    <button id="btn-export-obj"
+                        class="btn-secondary px-6 py-3 rounded-xl font-medium flex items-center gap-2 flex-1 justify-center relative group">
+                        <!-- Tooltip for FBX users -->
+                        <div
+                            class="absolute -top-14 left-1/2 transform -translate-x-1/2 bg-black text-xs px-2 py-2 rounded opacity-0 group-hover:opacity-100 transition whitespace-nowrap pointer-events-none border border-gray-700 text-center">
+                            Dikkat: OBJ formatı renkleri ve dokuları<br>tek dosya içinde saklayamaz. Sadece şekli
+                            indirir.
+                        </div>
+                        <svg class="w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4">
+                            </path>
+                        </svg>
+                        <div>
+                            <div class="text-[10px] font-normal opacity-60 uppercase tracking-wider">GEOMETRİ (Texture
+                                Yok)</div>
+                            <div class="text-sm">OBJ İndir</div>
+                        </div>
+                    </button>
+
+                    <!-- Fake FBX Button -->
+                    <button
+                        onclick="alert('Web tarayıcılarında FBX dosyası oluşturmak teknik olarak henüz mümkün değildir. Geometri transferi için lütfen yandaki OBJ seçeneğini (uygun ölçekle) kullanın.')"
+                        class="bg-gray-800/50 border border-gray-700 text-gray-500 px-4 py-3 rounded-xl font-medium flex items-center justify-center cursor-not-allowed hover:bg-gray-800 transition">
+                        <span class="text-xs font-bold">FBX?</span>
+                    </button>
+                </div>
             </div>
         </div>
     </div>
@@ -130,202 +326,182 @@
         import { FBXLoader } from 'three/addons/loaders/FBXLoader.js';
         import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
         import { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js';
-        import { KTX2Loader } from 'three/addons/loaders/KTX2Loader.js'; // KTX2 Desteği
-        import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js'; // Meshopt Desteği
+        import { KTX2Loader } from 'three/addons/loaders/KTX2Loader.js';
+        import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
         import { GLTFExporter } from 'three/addons/exporters/GLTFExporter.js';
         import { OBJExporter } from 'three/addons/exporters/OBJExporter.js';
-        import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js'; // Stüdyo Işığı
+        import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 
-        // --- Scene Setup ---
+        // Setup
         const container = document.getElementById('canvas-container');
         const scene = new THREE.Scene();
-        scene.background = new THREE.Color(0x222222);
-
-        // Grid
-        const gridHelper = new THREE.GridHelper(100, 100, 0x555555, 0x333333);
-        scene.add(gridHelper);
 
         const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.01, 100000);
-        camera.position.set(2, 2, 5);
+        camera.position.set(3, 3, 6);
 
         const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
         renderer.setSize(window.innerWidth, window.innerHeight);
         renderer.setPixelRatio(window.devicePixelRatio);
         renderer.outputColorSpace = THREE.SRGBColorSpace;
-        renderer.toneMapping = THREE.ACESFilmicToneMapping; // Daha gerçekçi renkler
-        renderer.toneMappingExposure = 1;
+        renderer.toneMapping = THREE.ACESFilmicToneMapping;
+        renderer.toneMappingExposure = 1.0;
         container.appendChild(renderer.domElement);
-        
-        // Environment Map (Metalik modellerin görünmesi için şart)
+
+        // Environment
         const pmremGenerator = new THREE.PMREMGenerator(renderer);
         scene.environment = pmremGenerator.fromScene(new RoomEnvironment(), 0.04).texture;
 
-        const controls = new OrbitControls(camera, renderer.domElement);
-        controls.enableDamping = true;
-
-        // --- Lights ---
-        // Sahneye güçlü ışıklar ekleyelim
-        const ambLight = new THREE.AmbientLight(0xffffff, 1);
+        // Lighting
+        const ambLight = new THREE.AmbientLight(0xffffff, 0.6);
         scene.add(ambLight);
-        
-        const dirLight = new THREE.DirectionalLight(0xffffff, 3);
+        const dirLight = new THREE.DirectionalLight(0xffffff, 2);
         dirLight.position.set(5, 10, 7);
         scene.add(dirLight);
 
-        // --- Loaders Setup ---
-        // 1. DRACO
-        const dracoLoader = new DRACOLoader();
-        dracoLoader.setDecoderPath('https://cdn.jsdelivr.net/npm/three@0.160.0/examples/js/m/draco/');
+        const controls = new OrbitControls(camera, renderer.domElement);
+        controls.enableDamping = true;
+        controls.dampingFactor = 0.05;
 
-        // 2. KTX2
-        const ktx2Loader = new KTX2Loader();
-        ktx2Loader.setTranscoderPath('https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/libs/basis/');
-        ktx2Loader.detectSupport(renderer);
+        // Grid
+        const gridHelper = new THREE.GridHelper(100, 100, 0x333333, 0x111111);
+        scene.add(gridHelper);
 
-        // --- App Variables ---
+        // Loaders
+        const dracoLoader = new DRACOLoader().setDecoderPath('https://cdn.jsdelivr.net/npm/three@0.160.0/examples/js/m/draco/');
+        const ktx2Loader = new KTX2Loader().setTranscoderPath('https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/libs/basis/').detectSupport(renderer);
+
         let loadedModel = null;
-        let loadedFileName = "";
+        let loadedFileName = "model";
         let mixer = null;
         const clock = new THREE.Clock();
 
         function animate() {
             requestAnimationFrame(animate);
-            const delta = clock.getDelta();
-            if (mixer) mixer.update(delta);
+            if (mixer) mixer.update(clock.getDelta());
             controls.update();
             renderer.render(scene, camera);
         }
         animate();
 
-        // --- Interaction ---
+        // UI Logic
         const dropZone = document.getElementById('drop-zone');
         const fileInput = document.getElementById('file-input');
-        
-        const handleFiles = (files) => {
-             if (files.length) loadFile(files[0]);
-        };
+        const handleFiles = (files) => { if (files.length) loadFile(files[0]); };
 
-        dropZone.addEventListener('dragover', (e) => { e.preventDefault(); dropZone.classList.add('active'); });
-        dropZone.addEventListener('dragleave', () => dropZone.classList.remove('active'));
-        dropZone.addEventListener('drop', (e) => {
-            e.preventDefault();
-            dropZone.classList.remove('active');
-            handleFiles(e.dataTransfer.files);
-        });
+        ['dragenter', 'dragover'].forEach(e => dropZone.addEventListener(e, (ev) => { ev.preventDefault(); dropZone.classList.add('active'); }));
+        ['dragleave', 'drop'].forEach(e => dropZone.addEventListener(e, (ev) => { ev.preventDefault(); dropZone.classList.remove('active'); }));
+        dropZone.addEventListener('drop', (e) => handleFiles(e.dataTransfer.files));
         fileInput.addEventListener('change', (e) => handleFiles(e.target.files));
 
-        // --- Loading Logic ---
         function loadFile(file) {
-            const ext = file.name.split('.').pop().toLowerCase();
             loadedFileName = file.name.split('.')[0];
+            const ext = file.name.split('.').pop().toLowerCase();
 
             document.getElementById('drop-content').classList.add('hidden');
             document.getElementById('loading-content').classList.remove('hidden');
 
-            if (loadedModel) {
-                scene.remove(loadedModel);
-                loadedModel = null;
-            }
+            if (loadedModel) { scene.remove(loadedModel); loadedModel = null; }
             if (mixer) { mixer.stopAllAction(); mixer = null; }
+            document.getElementById('anim-badge').classList.add('hidden');
 
             const reader = new FileReader();
             reader.readAsArrayBuffer(file);
-
-            reader.onload = function(e) {
+            reader.onload = (e) => {
                 const buffer = e.target.result;
-
                 if (ext === 'fbx') {
-                    const loader = new FBXLoader();
-                    try {
-                        const object = loader.parse(buffer, '');
-                        onModelLoaded(object);
-                    } catch (err) { handleError(err); }
-                } 
-                else if (ext === 'glb' || ext === 'gltf') {
-                    const loader = new GLTFLoader();
-                    loader.setDRACOLoader(dracoLoader);
-                    loader.setKTX2Loader(ktx2Loader);
-                    loader.setMeshoptDecoder(MeshoptDecoder);
-
+                    new FBXLoader().parse(buffer, '', onSuccess, onError);
+                } else if (ext === 'glb' || ext === 'gltf') {
+                    const loader = new GLTFLoader()
+                        .setDRACOLoader(dracoLoader)
+                        .setKTX2Loader(ktx2Loader)
+                        .setMeshoptDecoder(MeshoptDecoder);
                     loader.parse(buffer, '', (gltf) => {
                         const model = gltf.scene;
                         model.animations = gltf.animations;
-                        onModelLoaded(model);
-                    }, handleError);
-                } 
-                else {
-                    alert("Desteklenmeyen format.");
-                    resetUI();
+                        onSuccess(model);
+                    }, onError);
+                } else {
+                    alert('Geçersiz dosya! Lütfen FBX, GLB veya GLTF yükleyin.');
+                    location.reload();
                 }
             };
         }
 
-        function onModelLoaded(object) {
-            loadedModel = object;
-            scene.add(loadedModel);
-
-            // --- CRITICAL VISIBILITY FIXES ---
+        // --- Critical Material Fixer ---
+        // FBX materyallerini (Phong) GLB için uygun (Standard) hale getirir
+        // Bu işlem textureların export sırasında kaybolmasını önler.
+        function ensureStandardMaterial(object) {
             object.traverse((child) => {
-                if (child.isMesh) {
-                    // 1. Force Double Side (Ters yüzeyleri göster)
-                    if (child.material) {
+                if (child.isMesh && child.material) {
+                    // Texture haritaları varsa renk uzayını düzelt
+                    if (child.material.map) child.material.map.colorSpace = THREE.SRGBColorSpace;
+                    if (child.material.emissiveMap) child.material.emissiveMap.colorSpace = THREE.SRGBColorSpace;
+
+                    // Eğer materyal Standart değilse (örn: Phong), verileri kaybetmeden dönüştür
+                    if (child.material.type !== 'MeshStandardMaterial') {
+                        const oldMat = child.material;
+                        const newMat = new THREE.MeshStandardMaterial();
+
+                        newMat.name = oldMat.name;
+                        newMat.color = oldMat.color;
+                        newMat.map = oldMat.map; // Texture referansını koru
+                        newMat.normalMap = oldMat.normalMap;
+                        newMat.bumpMap = oldMat.bumpMap;
+                        newMat.transparent = oldMat.transparent;
+                        newMat.opacity = oldMat.opacity;
+                        newMat.side = THREE.DoubleSide; // Çift taraflı yap
+
+                        // Basit bir roughness değeri ata (FBX genelde parlaktır)
+                        newMat.roughness = 0.5;
+                        newMat.metalness = 0.1;
+
+                        child.material = newMat;
+                        child.material.needsUpdate = true;
+                    } else {
+                        // Zaten Standart ise sadece çift taraflı yap
                         child.material.side = THREE.DoubleSide;
-                        // 2. Ensure opacity
-                        child.material.transparent = false; 
-                        child.material.opacity = 1.0;
                     }
-                    // 3. Enable Shadows
+                }
+            });
+        }
+
+        function onSuccess(object) {
+            loadedModel = object;
+            scene.add(object);
+
+            // Materyal ve Textureları İyileştir (Export öncesi hazırlık)
+            ensureStandardMaterial(object);
+
+            // Fix Shadows
+            object.traverse(child => {
+                if (child.isMesh) {
                     child.castShadow = true;
                     child.receiveShadow = true;
                 }
             });
 
-            // --- Auto Focus ---
-            // Dünya matrisini güncelle ki BoundingBox doğru hesaplansın
-            object.updateMatrixWorld(true); 
-            
+            // Framing
             const box = new THREE.Box3().setFromObject(object);
-            if (box.isEmpty()) {
-                // Eğer hala boşsa varsayılan bir kutu ata
-                box.min.set(-2, -2, -2);
-                box.max.set(2, 2, 2);
-            }
-
+            if (box.isEmpty()) { box.min.set(-1, -1, -1); box.max.set(1, 1, 1); }
             const size = box.getSize(new THREE.Vector3());
             const center = box.getCenter(new THREE.Vector3());
+            object.position.sub(center);
 
-            // Hata ayıklama bilgisi
-            document.getElementById('debug-info').innerText = 
-                `Boyut: ${size.x.toFixed(2)}x${size.y.toFixed(2)} | Merkez: ${center.x.toFixed(2)},${center.y.toFixed(2)}`;
-
-            // Modeli merkeze taşıma mantığı
-            // Modeli taşımak yerine, modeli bir "Pivot" objeye koyup onu taşımak daha güvenlidir ama
-            // basitlik için pozisyon kaydırıyoruz.
-            const offset = center.clone().negate();
-            object.position.add(offset); // Modeli (0,0,0)'a çek
-
-            // Kamerayı ayarla
-            const maxDim = Math.max(size.x, size.y, size.z) || 5; // 0 ise 5 yap
-            const fov = camera.fov * (Math.PI / 180);
-            let cameraZ = Math.abs(maxDim / 2 * Math.tan(fov * 2));
-            cameraZ *= 2; 
-
-            if (cameraZ < 0.5) cameraZ = 2; // Çok küçükse çok yaklaşma
-            if (cameraZ > 1000) cameraZ = 100; // Çok büyükse uzaya gitme
-
-            camera.position.set(cameraZ, cameraZ * 0.5, cameraZ);
+            const maxDim = Math.max(size.x, size.y, size.z);
+            const dist = maxDim * 2 < 1 ? 2 : maxDim * 2;
+            camera.position.set(dist, dist / 2, dist);
             camera.lookAt(0, 0, 0);
             controls.target.set(0, 0, 0);
-            controls.update();
 
-            // --- Animations ---
-            if (object.animations && object.animations.length > 0) {
+            // Animation
+            if (object.animations?.length) {
                 mixer = new THREE.AnimationMixer(object);
                 object.animations.forEach(clip => mixer.clipAction(clip).play());
-                document.getElementById('anim-info').classList.remove('hidden');
+                document.getElementById('anim-badge').classList.remove('hidden');
             }
 
             // UI
+            document.getElementById('debug-info').innerText = `${size.x.toFixed(1)}m x ${size.y.toFixed(1)}m x ${size.z.toFixed(1)}m`;
             document.getElementById('drop-zone').classList.add('hidden');
             document.getElementById('controls').style.opacity = '1';
             document.getElementById('controls').style.transform = 'translateY(0)';
@@ -334,28 +510,62 @@
             document.getElementById('filename-display').textContent = loadedFileName;
         }
 
-        function handleError(err) {
+        function onError(err) {
             console.error(err);
-            alert("Model yüklenemedi! \nHata: " + err.message);
-            resetUI();
+            alert('Hata: ' + err.message);
+            location.reload();
         }
 
-        function resetUI() {
-            document.getElementById('drop-content').classList.remove('hidden');
-            document.getElementById('loading-content').classList.add('hidden');
+        // --- Export Logic ---
+        function getScaleFactor() {
+            const val = document.getElementById('scale-selector').value;
+            return parseFloat(val) || 1;
         }
 
-        // --- Export ---
+        function applyScale(scale) {
+            if (!loadedModel) return;
+            loadedModel.scale.setScalar(scale);
+            loadedModel.updateMatrixWorld(true);
+        }
+
+        // Export GLB
         document.getElementById('btn-export-glb').onclick = () => {
             if (!loadedModel) return;
+            const scale = getScaleFactor();
+            applyScale(scale);
+
             const exporter = new GLTFExporter();
-            exporter.parse(loadedModel, (buf) => save(new Blob([buf]), `${loadedFileName}_export.glb`), { binary: true, animations: loadedModel.animations });
+            const options = {
+                binary: true, // Textureları dosya içine göm (embed)
+                animations: loadedModel.animations || [],
+                maxTextureSize: 4096 // Texture kalitesini koru
+            };
+
+            exporter.parse(
+                loadedModel,
+                (buf) => {
+                    save(new Blob([buf]), `${loadedFileName}_glbify_x${scale}.glb`);
+                    applyScale(1);
+                },
+                (err) => {
+                    alert(err);
+                    applyScale(1);
+                },
+                options
+            );
         };
 
+        // Export OBJ
         document.getElementById('btn-export-obj').onclick = () => {
             if (!loadedModel) return;
+            const scale = getScaleFactor();
+            applyScale(scale);
+
             const exporter = new OBJExporter();
-            save(new Blob([exporter.parse(loadedModel)], {type: 'text/plain'}), `${loadedFileName}_export.obj`);
+            const result = exporter.parse(loadedModel);
+            save(new Blob([result], { type: 'text/plain' }), `${loadedFileName}_glbify_x${scale}.obj`);
+
+            applyScale(1);
         };
 
         function save(blob, name) {
@@ -365,11 +575,12 @@
             a.click();
         }
 
-        window.addEventListener('resize', () => {
+        window.onresize = () => {
             camera.aspect = window.innerWidth / window.innerHeight;
             camera.updateProjectionMatrix();
             renderer.setSize(window.innerWidth, window.innerHeight);
-        });
+        };
     </script>
 </body>
+
 </html>
