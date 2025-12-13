@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3D Model Dönüştürücü (Ultimate)</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { margin: 0; overflow: hidden; background-color: #111; color: white; font-family: 'Segoe UI', sans-serif; }
+        #canvas-container { width: 100vw; height: 100vh; display: block; }
+        #ui-layer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+        .interactive { pointer-events: auto; }
+        
+        #drop-zone {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            border: 2px dashed #444;
+            background: rgba(0,0,0,0.85);
+            padding: 40px;
+            border-radius: 12px;
+            text-align: center;
+            transition: all 0.3s ease;
+            z-index: 10;
+            min-width: 300px;
+        }
+        #drop-zone.active { border-color: #3b82f6; background: rgba(59, 130, 246, 0.2); }
+        #drop-zone.hidden { display: none; }
+
+        .spinner {
+            border: 4px solid rgba(255, 255, 255, 0.1);
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            border-left-color: #3b82f6;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 10px;
+        }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        
+        .glass-panel {
+            background: rgba(30, 30, 30, 0.85);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+        }
+    </style>
+    <!-- Import Map -->
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+                "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+            }
+        }
+    </script>
+</head>
+<body>
+
+    <div id="canvas-container"></div>
+
+    <div id="ui-layer">
+        <!-- Header -->
+        <div class="p-4 flex justify-between items-start interactive">
+            <div class="glass-panel p-4 max-w-md">
+                <h1 class="text-xl font-bold text-blue-400 flex items-center gap-2">
+                    3D Converter Ultimate
+                </h1>
+                <p class="text-xs text-gray-400 mt-1">KTX2, Draco, Meshopt, Animasyon destekli.</p>
+                <div id="file-info" class="hidden mt-3 pt-3 border-t border-gray-600 text-sm">
+                    <div class="flex justify-between items-center mb-1">
+                        <span class="text-gray-300">Dosya:</span> 
+                        <span id="filename-display" class="font-mono text-yellow-400">...</span>
+                    </div>
+                    <div id="anim-info" class="text-xs text-green-400 hidden">• Animasyon Aktif</div>
+                    <div id="debug-info" class="text-xs text-orange-400 mt-1"></div>
+                </div>
+            </div>
+            
+            <div class="glass-panel p-2 flex gap-2">
+                <button onclick="window.location.reload()" class="bg-red-600 hover:bg-red-700 text-white px-3 py-1 rounded text-sm transition">Sıfırla</button>
+            </div>
+        </div>
+
+        <!-- Drop Zone -->
+        <div id="drop-zone" class="interactive">
+            <div id="drop-content">
+                <svg class="w-16 h-16 mx-auto text-blue-500 mb-4 opacity-80" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path></svg>
+                <h2 class="text-xl font-bold mb-2">Dosya Yükle</h2>
+                <p class="text-sm text-gray-400 mb-6">FBX, GLB, GLTF</p>
+                <input type="file" id="file-input" class="hidden" accept=".fbx,.glb,.gltf">
+                <button onclick="document.getElementById('file-input').click()" class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg w-full">Seç</button>
+            </div>
+            <div id="loading-content" class="hidden">
+                <div class="spinner"></div>
+                <p class="text-blue-300">Model Çözümleniyor...</p>
+                <p class="text-xs text-gray-500 mt-2">Bu işlem dosya boyutuna göre sürebilir.</p>
+            </div>
+        </div>
+
+        <!-- Export Controls -->
+        <div id="controls" class="p-6 flex justify-center gap-4 interactive transition-all duration-500 opacity-0 translate-y-10 pointer-events-none">
+            <div class="glass-panel p-4 flex gap-4 items-center border-t-4 border-blue-500">
+                <button id="btn-export-glb" class="bg-green-600 hover:bg-green-700 text-white px-5 py-3 rounded-lg font-bold flex items-center gap-2">
+                    GLB İndir
+                </button>
+                <button id="btn-export-obj" class="bg-orange-600 hover:bg-orange-700 text-white px-5 py-3 rounded-lg font-bold flex items-center gap-2">
+                    OBJ İndir
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Logic -->
+    <script type="module">
+        import * as THREE from 'three';
+        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+        import { FBXLoader } from 'three/addons/loaders/FBXLoader.js';
+        import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+        import { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js';
+        import { KTX2Loader } from 'three/addons/loaders/KTX2Loader.js'; // KTX2 Desteği
+        import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js'; // Meshopt Desteği
+        import { GLTFExporter } from 'three/addons/exporters/GLTFExporter.js';
+        import { OBJExporter } from 'three/addons/exporters/OBJExporter.js';
+        import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js'; // Stüdyo Işığı
+
+        // --- Scene Setup ---
+        const container = document.getElementById('canvas-container');
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x222222);
+
+        // Grid
+        const gridHelper = new THREE.GridHelper(100, 100, 0x555555, 0x333333);
+        scene.add(gridHelper);
+
+        const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.01, 100000);
+        camera.position.set(2, 2, 5);
+
+        const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(window.devicePixelRatio);
+        renderer.outputColorSpace = THREE.SRGBColorSpace;
+        renderer.toneMapping = THREE.ACESFilmicToneMapping; // Daha gerçekçi renkler
+        renderer.toneMappingExposure = 1;
+        container.appendChild(renderer.domElement);
+        
+        // Environment Map (Metalik modellerin görünmesi için şart)
+        const pmremGenerator = new THREE.PMREMGenerator(renderer);
+        scene.environment = pmremGenerator.fromScene(new RoomEnvironment(), 0.04).texture;
+
+        const controls = new OrbitControls(camera, renderer.domElement);
+        controls.enableDamping = true;
+
+        // --- Lights ---
+        // Sahneye güçlü ışıklar ekleyelim
+        const ambLight = new THREE.AmbientLight(0xffffff, 1);
+        scene.add(ambLight);
+        
+        const dirLight = new THREE.DirectionalLight(0xffffff, 3);
+        dirLight.position.set(5, 10, 7);
+        scene.add(dirLight);
+
+        // --- Loaders Setup ---
+        // 1. DRACO
+        const dracoLoader = new DRACOLoader();
+        dracoLoader.setDecoderPath('https://cdn.jsdelivr.net/npm/three@0.160.0/examples/js/m/draco/');
+
+        // 2. KTX2
+        const ktx2Loader = new KTX2Loader();
+        ktx2Loader.setTranscoderPath('https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/libs/basis/');
+        ktx2Loader.detectSupport(renderer);
+
+        // --- App Variables ---
+        let loadedModel = null;
+        let loadedFileName = "";
+        let mixer = null;
+        const clock = new THREE.Clock();
+
+        function animate() {
+            requestAnimationFrame(animate);
+            const delta = clock.getDelta();
+            if (mixer) mixer.update(delta);
+            controls.update();
+            renderer.render(scene, camera);
+        }
+        animate();
+
+        // --- Interaction ---
+        const dropZone = document.getElementById('drop-zone');
+        const fileInput = document.getElementById('file-input');
+        
+        const handleFiles = (files) => {
+             if (files.length) loadFile(files[0]);
+        };
+
+        dropZone.addEventListener('dragover', (e) => { e.preventDefault(); dropZone.classList.add('active'); });
+        dropZone.addEventListener('dragleave', () => dropZone.classList.remove('active'));
+        dropZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropZone.classList.remove('active');
+            handleFiles(e.dataTransfer.files);
+        });
+        fileInput.addEventListener('change', (e) => handleFiles(e.target.files));
+
+        // --- Loading Logic ---
+        function loadFile(file) {
+            const ext = file.name.split('.').pop().toLowerCase();
+            loadedFileName = file.name.split('.')[0];
+
+            document.getElementById('drop-content').classList.add('hidden');
+            document.getElementById('loading-content').classList.remove('hidden');
+
+            if (loadedModel) {
+                scene.remove(loadedModel);
+                loadedModel = null;
+            }
+            if (mixer) { mixer.stopAllAction(); mixer = null; }
+
+            const reader = new FileReader();
+            reader.readAsArrayBuffer(file);
+
+            reader.onload = function(e) {
+                const buffer = e.target.result;
+
+                if (ext === 'fbx') {
+                    const loader = new FBXLoader();
+                    try {
+                        const object = loader.parse(buffer, '');
+                        onModelLoaded(object);
+                    } catch (err) { handleError(err); }
+                } 
+                else if (ext === 'glb' || ext === 'gltf') {
+                    const loader = new GLTFLoader();
+                    loader.setDRACOLoader(dracoLoader);
+                    loader.setKTX2Loader(ktx2Loader);
+                    loader.setMeshoptDecoder(MeshoptDecoder);
+
+                    loader.parse(buffer, '', (gltf) => {
+                        const model = gltf.scene;
+                        model.animations = gltf.animations;
+                        onModelLoaded(model);
+                    }, handleError);
+                } 
+                else {
+                    alert("Desteklenmeyen format.");
+                    resetUI();
+                }
+            };
+        }
+
+        function onModelLoaded(object) {
+            loadedModel = object;
+            scene.add(loadedModel);
+
+            // --- CRITICAL VISIBILITY FIXES ---
+            object.traverse((child) => {
+                if (child.isMesh) {
+                    // 1. Force Double Side (Ters yüzeyleri göster)
+                    if (child.material) {
+                        child.material.side = THREE.DoubleSide;
+                        // 2. Ensure opacity
+                        child.material.transparent = false; 
+                        child.material.opacity = 1.0;
+                    }
+                    // 3. Enable Shadows
+                    child.castShadow = true;
+                    child.receiveShadow = true;
+                }
+            });
+
+            // --- Auto Focus ---
+            // Dünya matrisini güncelle ki BoundingBox doğru hesaplansın
+            object.updateMatrixWorld(true); 
+            
+            const box = new THREE.Box3().setFromObject(object);
+            if (box.isEmpty()) {
+                // Eğer hala boşsa varsayılan bir kutu ata
+                box.min.set(-2, -2, -2);
+                box.max.set(2, 2, 2);
+            }
+
+            const size = box.getSize(new THREE.Vector3());
+            const center = box.getCenter(new THREE.Vector3());
+
+            // Hata ayıklama bilgisi
+            document.getElementById('debug-info').innerText = 
+                `Boyut: ${size.x.toFixed(2)}x${size.y.toFixed(2)} | Merkez: ${center.x.toFixed(2)},${center.y.toFixed(2)}`;
+
+            // Modeli merkeze taşıma mantığı
+            // Modeli taşımak yerine, modeli bir "Pivot" objeye koyup onu taşımak daha güvenlidir ama
+            // basitlik için pozisyon kaydırıyoruz.
+            const offset = center.clone().negate();
+            object.position.add(offset); // Modeli (0,0,0)'a çek
+
+            // Kamerayı ayarla
+            const maxDim = Math.max(size.x, size.y, size.z) || 5; // 0 ise 5 yap
+            const fov = camera.fov * (Math.PI / 180);
+            let cameraZ = Math.abs(maxDim / 2 * Math.tan(fov * 2));
+            cameraZ *= 2; 
+
+            if (cameraZ < 0.5) cameraZ = 2; // Çok küçükse çok yaklaşma
+            if (cameraZ > 1000) cameraZ = 100; // Çok büyükse uzaya gitme
+
+            camera.position.set(cameraZ, cameraZ * 0.5, cameraZ);
+            camera.lookAt(0, 0, 0);
+            controls.target.set(0, 0, 0);
+            controls.update();
+
+            // --- Animations ---
+            if (object.animations && object.animations.length > 0) {
+                mixer = new THREE.AnimationMixer(object);
+                object.animations.forEach(clip => mixer.clipAction(clip).play());
+                document.getElementById('anim-info').classList.remove('hidden');
+            }
+
+            // UI
+            document.getElementById('drop-zone').classList.add('hidden');
+            document.getElementById('controls').style.opacity = '1';
+            document.getElementById('controls').style.transform = 'translateY(0)';
+            document.getElementById('controls').style.pointerEvents = 'auto';
+            document.getElementById('file-info').classList.remove('hidden');
+            document.getElementById('filename-display').textContent = loadedFileName;
+        }
+
+        function handleError(err) {
+            console.error(err);
+            alert("Model yüklenemedi! \nHata: " + err.message);
+            resetUI();
+        }
+
+        function resetUI() {
+            document.getElementById('drop-content').classList.remove('hidden');
+            document.getElementById('loading-content').classList.add('hidden');
+        }
+
+        // --- Export ---
+        document.getElementById('btn-export-glb').onclick = () => {
+            if (!loadedModel) return;
+            const exporter = new GLTFExporter();
+            exporter.parse(loadedModel, (buf) => save(new Blob([buf]), `${loadedFileName}_export.glb`), { binary: true, animations: loadedModel.animations });
+        };
+
+        document.getElementById('btn-export-obj').onclick = () => {
+            if (!loadedModel) return;
+            const exporter = new OBJExporter();
+            save(new Blob([exporter.parse(loadedModel)], {type: 'text/plain'}), `${loadedFileName}_export.obj`);
+        };
+
+        function save(blob, name) {
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            a.download = name;
+            a.click();
+        }
+
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+    </script>
+</body>
+</html>
