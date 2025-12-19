@@ -1,0 +1,43 @@
+# Dependencies
+node_modules/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Logs
+*.log
+npm-debug.log*
+
+# Build outputs
+dist/
+build/
+*.min.js
+*.min.css
+
+# Temporary files
+*.tmp
+*.temp
+.cache/
+
+# Test files (kullanıcı tarafından yüklenen test dosyaları)
+*.fbx
+*.glb
+*.gltf
+*.obj
+*.stl
+
+# Brain klasöründeki geçici dosyalar
+brain/.chat-history/
