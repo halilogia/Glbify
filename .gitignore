@@ -41,3 +41,9 @@ build/
 
 # Brain klasöründeki geçici dosyalar
 brain/.chat-history/
+
+archives/
+archive/
+
+# Agent Internal Brain & Scratch
+brain/
