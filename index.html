@@ -56,6 +56,20 @@
                         </span>
                         <span id="anim-label">Animasyon</span>
                     </span>
+
+                    <button id="btn-install" type="button" class="badge badge-brand hidden items-center gap-1.5">
+                        Uygulamayı kur
+                    </button>
+                </div>
+
+                <div class="flex items-center gap-3 mt-3">
+                    <button id="btn-share" type="button" class="text-[10px] text-gray-500 hover:text-green-400 transition">
+                        Ayar linkini kopyala
+                    </button>
+                    <span class="text-gray-700">·</span>
+                    <button id="btn-cache" type="button" class="text-[10px] text-gray-500 hover:text-green-400 transition">
+                        Önbellek: hesaplanıyor...
+                    </button>
                 </div>
 
                 <div id="file-info" class="hidden mt-4 pt-4 border-t border-gray-800">
@@ -178,7 +192,10 @@
                 <div class="progress-track">
                     <div id="loading-bar" class="progress-bar" style="width:0%"></div>
                 </div>
-                <p id="loading-percent" class="text-[11px] text-gray-500 mt-2 font-mono">0%</p>
+                <div class="flex items-center justify-between mt-2">
+                    <p id="loading-percent" class="text-[11px] text-gray-500 font-mono">0%</p>
+                    <button id="btn-cancel" type="button" class="tool-btn">İptal</button>
+                </div>
             </div>
         </section>
 
@@ -276,9 +293,36 @@
                                 </select>
                             </label>
 
-                            <p class="w-full text-[11px] text-gray-500">DRACO yalnızca GLB çıktısında
-                                <code class="text-gray-400">KHR_draco_mesh_compression</code> uzantısı ile çalışır.</p>
+                            <label class="flex items-center gap-2 text-sm text-gray-300 cursor-pointer ml-auto">
+                                <input type="checkbox" id="meshopt-toggle" class="toggle">
+                                <span>Meshopt (EXT_meshopt)</span>
+                            </label>
                         </div>
+
+                        <div class="grid gap-3 w-full sm:grid-cols-2 border-t border-gray-700/70 pt-4">
+                            <label class="field">
+                                <span>Mesh sadeleştirme: <span id="simplify-value" class="text-green-400">Kapalı</span></span>
+                                <input type="range" id="simplify-ratio" class="timeline" min="0" max="0.9" step="0.05" value="0">
+                            </label>
+
+                            <label class="field">
+                                <span>Geometri temizliği</span>
+                                <div class="flex items-center gap-4 py-1">
+                                    <label class="flex items-center gap-2 text-xs text-gray-300 cursor-pointer">
+                                        <input type="checkbox" id="weld-toggle" class="toggle" checked>
+                                        <span>Vertex birleştir</span>
+                                    </label>
+                                    <label class="flex items-center gap-2 text-xs text-gray-300 cursor-pointer">
+                                        <input type="checkbox" id="ktx2-toggle" class="toggle">
+                                        <span>KTX2 doku</span>
+                                    </label>
+                                </div>
+                            </label>
+                        </div>
+
+                        <p class="w-full text-[11px] text-gray-500">DRACO yalnızca GLB çıktısında
+                            <code class="text-gray-400">KHR_draco_mesh_compression</code> uzantısı ile çalışır.
+                            <span id="size-estimate"></span></p>
                     </div>
                 </details>
 

@@ -9,6 +9,7 @@ import { ThreeMFLoader } from 'three/addons/loaders/3MFLoader.js';
 import { USDLoader } from 'three/addons/loaders/USDLoader.js';
 import { decodeText } from './fileReader.js';
 import { blobToDataUrl } from './textureOps.js';
+import { parseInWorker } from './workerParser.js';
 
 const TEXTURE_DIRECTIVES =
     /^\s*(map_Kd|map_Ka|map_Ks|map_Ke|map_Kn|map_ns|map_d|bump|disp|norm|refl|decal)\s+(\S+)/gim;
@@ -28,6 +29,17 @@ function groupFromGeometry(geometry, name) {
     const mesh = new THREE.Mesh(geometry, material);
     mesh.name = name;
     return mesh;
+}
+
+async function tryWorker(extension, buffer, context = {}) {
+    if (!context.useWorker) return null;
+    try {
+        return await parseInWorker(WORKER_IMPORT[extension], buffer, { signal: context.signal });
+    } catch (error) {
+        if (error?.name === 'AbortError') throw error;
+        console.warn(`[glbify] worker ayrıştırması başarısız, ana iş parçacığı kullanılıyor: ${error.message}`);
+        return null;
+    }
 }
 
 async function buildMtlLibrary(source, siblingFiles) {
@@ -82,10 +94,14 @@ const obj = {
     id: 'obj',
     label: 'OBJ',
     extensions: ['obj'],
-    async parse(buffer, { files = [] }) {
+    async parse(buffer, context = {}) {
+        const files = context.files ?? [];
         const mtlFile = files.find((file) => /\.mtl$/i.test(file.name));
+        const worker = await tryWorker('obj', buffer, { ...context, useWorker: context.useWorker && !mtlFile });
+        if (worker) return worker;
+
         let materials = null;
-        let notes = [];
+        const notes = [];
 
         if (mtlFile) {
             try {
@@ -123,11 +139,15 @@ const mtl = {
     },
 };
 
+const WORKER_IMPORT = { stl: 'stl', ply: 'ply', obj: 'obj' };
+
 const stl = {
     id: 'stl',
     label: 'STL',
     extensions: ['stl'],
-    async parse(buffer) {
+    async parse(buffer, context) {
+        const worker = await tryWorker('stl', buffer, context);
+        if (worker) return worker;
         try {
             return { object: groupFromGeometry(new STLLoader().parse(buffer), 'stl'), animations: [] };
         } catch (cause) {
@@ -140,7 +160,9 @@ const ply = {
     id: 'ply',
     label: 'PLY',
     extensions: ['ply'],
-    async parse(buffer) {
+    async parse(buffer, context) {
+        const worker = await tryWorker('ply', buffer, context);
+        if (worker) return worker;
         try {
             return { object: groupFromGeometry(new PLYLoader().parse(buffer), 'ply'), animations: [] };
         } catch (cause) {

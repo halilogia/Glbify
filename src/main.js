@@ -9,15 +9,29 @@ import { exporters } from './io/exporters.js';
 import { EmptyFileError, FileLimitError, readFile } from './io/fileReader.js';
 import { ACCEPTED_EXTENSIONS, getImporter } from './io/importers.js';
 import { applyMtlLibrary, auditColorSpaces, prepareModel } from './io/materials.js';
+import { collectTextureSizes, estimateOutputBytes, formatEstimate } from './io/estimate.js';
+import { assessFileSize } from './utils/memory.js';
+import { isWorkerParseSupported } from './io/workerParser.js';
 import { computeStats } from './io/modelStats.js';
 import { registerServiceWorker, watchConnection } from './pwa/serviceWorker.js';
+import {
+    clearCaches,
+    formatVersionRange,
+    getStorageUsage,
+    readVersions,
+    recordVersion,
+    watchInstallPrompt,
+} from './pwa/install.js';
 import { createDropZone } from './ui/dropzone.js';
 import { createExportPanel } from './ui/exportPanel.js';
 import { createHud } from './ui/hud.js';
 import { notify, toast } from './ui/toast.js';
 import { $, nextFrame, setText } from './utils/dom.js';
 import { extensionOf, formatBytes, sanitizeBaseName } from './utils/format.js';
-import { getSettings } from './utils/store.js';
+import { getSettings, setSettings } from './utils/store.js';
+import { buildShareUrl, readSettingsFromUrl } from './utils/share.js';
+
+setSettings(readSettingsFromUrl());
 
 const elements = {
     container: $('#canvas-container'),
@@ -28,6 +42,7 @@ const elements = {
     loadingHint: $('#loading-hint'),
     loadingBar: $('#loading-bar'),
     loadingPercent: $('#loading-percent'),
+    cancelButton: $('#btn-cancel'),
     fileInput: $('#file-input'),
     browseButton: $('#btn-browse'),
     limitSelect: $('#limit-select'),
@@ -52,6 +67,9 @@ const elements = {
     animLoop: $('#anim-loop'),
     netBadge: $('#net-badge'),
     updateBadge: $('#update-badge'),
+    installButton: $('#btn-install'),
+    shareButton: $('#btn-share'),
+    cacheButton: $('#btn-cache'),
     resetButton: $('#btn-reset'),
     frameButton: $('#btn-frame'),
     transformReset: $('#btn-transform-reset'),
@@ -64,6 +82,12 @@ const elements = {
     dracoToggle: $('#draco-toggle'),
     dracoLevel: $('#draco-level'),
     dracoLevelField: $('#draco-level-field'),
+    meshoptToggle: $('#meshopt-toggle'),
+    simplifyRatio: $('#simplify-ratio'),
+    simplifyValue: $('#simplify-value'),
+    weldToggle: $('#weld-toggle'),
+    ktx2Toggle: $('#ktx2-toggle'),
+    sizeEstimate: $('#size-estimate'),
     textureFormat: $('#texture-format'),
     textureQuality: $('#texture-quality'),
     qualityValue: $('#quality-value'),
@@ -88,6 +112,7 @@ class GlbifyApp {
         this.animator = null;
         this.audit = null;
         this.mtlLibrary = null;
+        this.abortController = null;
 
         this.viewer = new Viewer(elements.container, {
             onContextLost: () => notify.error('Grafik bağlamı kayboldu. Sayfayı yenileyin.'),
@@ -117,6 +142,7 @@ class GlbifyApp {
                 this.transform.setUnitScale(scale);
                 this.viewer.fitCamera(this.model ?? this.transform.proxy);
             },
+            onOptionsChange: () => this.refreshEstimate(),
         });
 
         this.bindTransformTools();
@@ -125,6 +151,9 @@ class GlbifyApp {
         elements.resetButton.addEventListener('click', () => this.reset());
         elements.container.addEventListener('dblclick', () => this.viewer.resetView());
         elements.auditButton.addEventListener('click', () => this.showAuditReport());
+        elements.cancelButton.addEventListener('click', () => this.abortController?.abort());
+        elements.shareButton.addEventListener('click', () => this.copyShareLink());
+        elements.cacheButton.addEventListener('click', () => this.clearCache());
         window.addEventListener('keydown', (event) => {
             if (event.key === 'Escape' && this.model) this.reset();
         });
@@ -137,18 +166,79 @@ class GlbifyApp {
     }
 
     setupServiceWorker() {
+        const [previous] = recordVersion(APP_VERSION);
+        const updated = readVersions()[1];
+
         registerServiceWorker({
             onUpdate: () => {
                 this.hud.setUpdateAvailable(true);
-                toast('Yeni sürüm indirildi.', {
-                    type: 'info',
-                    timeout: 0,
-                    action: { label: 'Şimdi yenile', onClick: () => window.location.reload() },
-                });
+                toast(
+                    `Yeni sürüm hazır: ${formatVersionRange(updated ?? previous, APP_VERSION)}`,
+                    {
+                        type: 'info',
+                        timeout: 0,
+                        action: { label: 'Şimdi yenile', onClick: () => window.location.reload() },
+                    },
+                );
             },
             onOfflineReady: () => notify.success('Çevrimdışı kullanıma hazır.'),
             onError: (error) => console.warn('Service worker kaydedilemedi:', error),
         });
+
+        this.setupInstallPrompt();
+        this.refreshCacheInfo();
+    }
+
+    setupInstallPrompt() {
+        let deferred = null;
+
+        watchInstallPrompt(
+            (event) => {
+                deferred = event;
+                elements.installButton.classList.remove('hidden');
+                elements.installButton.classList.add('inline-flex');
+            },
+            () => {
+                elements.installButton.classList.add('hidden');
+                elements.installButton.classList.remove('inline-flex');
+                notify.success('Glbify masaüstüne kuruldu.');
+            },
+        );
+
+        elements.installButton.addEventListener('click', async () => {
+            if (!deferred) return;
+            deferred.prompt();
+            const choice = await deferred.userChoice;
+            if (choice.outcome === 'accepted') notify.success('Kurulum başlatıldı.');
+            deferred = null;
+            elements.installButton.classList.add('hidden');
+            elements.installButton.classList.remove('inline-flex');
+        });
+    }
+
+    async refreshCacheInfo() {
+        const usage = await getStorageUsage();
+        if (!usage) {
+            setText(elements.cacheButton, 'Önbellek: desteklenmiyor');
+            return;
+        }
+        setText(elements.cacheButton, `Önbellek: ${formatBytes(usage.usage)} · tıkla ve temizle`);
+    }
+
+    async clearCache() {
+        const removed = await clearCaches();
+        await this.refreshCacheInfo();
+        notify.success(`${removed} önbellek silindi. Sayfa yenilenince yeniden indirilir.`);
+    }
+
+    async copyShareLink() {
+        const url = buildShareUrl(this.exportPanel.getOptions());
+        try {
+            await navigator.clipboard.writeText(url);
+            notify.success('Ayar linki panoya kopyalandı.');
+        } catch {
+            notify.info(`Ayar linki: ${url}`);
+        }
     }
 
     bindTransformTools() {
@@ -188,6 +278,25 @@ class GlbifyApp {
         this.viewer.updateGround();
     }
 
+    refreshEstimate() {
+        if (!this.model || !this.stats) {
+            this.exportPanel.setEstimate('');
+            return;
+        }
+
+        const textures = collectTextureSizes(this.model);
+        const bytes = estimateOutputBytes({
+            vertices: this.stats.vertices,
+            triangles: this.stats.triangles,
+            textures,
+            options: this.exportPanel.getOptions(),
+        });
+
+        this.exportPanel.setEstimate(
+            `· Tahmini çıktı: ~${formatEstimate(bytes)}${textures.length ? ` (${textures.length} doku)` : ''}`,
+        );
+    }
+
     async handleFiles(files) {
         const [primary, ...rest] = files;
         if (!primary) return;
@@ -206,24 +315,44 @@ class GlbifyApp {
 
         if (this.busy) return;
         this.busy = true;
+        this.abortController = new AbortController();
         this.hud.showDropZone(true);
         this.hud.setLoading(true, 'Dosya okunuyor', `${primary.name} · ${formatBytes(primary.size)}`);
         this.hud.setProgress(0);
 
+        const limitBytes = this.exportPanel.getOptions().maxFileMB * MB;
+        const assessment = assessFileSize(primary, limitBytes);
+        if (assessment.level === 'blocked') {
+            this.busy = false;
+            this.abortController = null;
+            notify.error(assessment.message);
+            return;
+        }
+        if (assessment.level === 'warning') notify.warning(assessment.message);
+
         try {
-            const limitBytes = this.exportPanel.getOptions().maxFileMB * MB;
             const buffer = await readFile(primary, {
                 limitBytes,
+                signal: this.abortController.signal,
                 onProgress: ({ ratio }) => this.hud.setProgress(ratio * 0.5),
             });
 
             this.hud.setProgress(0.55, 'Model ayrıştırılıyor', `${importer.label} · bu birkaç saniye sürebilir`);
             await nextFrame();
 
+            const useWorker =
+                this.settings.workerParse &&
+                isWorkerParseSupported(extension, {
+                    hasAuxiliaryFiles: rest.length > 0,
+                    size: primary.size,
+                });
+
             const result = await importer.parse(buffer, {
                 extension,
                 decoders: this.decoders,
                 files: [primary, ...rest],
+                useWorker,
+                signal: this.abortController.signal,
             });
 
             this.hud.setProgress(0.85, 'Sahne hazırlanıyor', 'Materyaller ve ölçek hesaplanıyor');
@@ -244,6 +373,7 @@ class GlbifyApp {
             this.viewer.updateGround();
 
             this.model = result.object;
+            this.stats = stats;
             this.baseName = sanitizeBaseName(primary.name);
 
             this.transform.setUnitScale(unitScale);
@@ -259,21 +389,27 @@ class GlbifyApp {
             this.hud.showDropZone(false);
             this.hud.showControls(true);
             this.exportPanel.setEnabled(true);
+            this.refreshEstimate();
 
             this.warnAboutModel(primary, stats, extension);
         } catch (error) {
-            if (!(error instanceof FileLimitError) && !(error instanceof EmptyFileError)) console.error(error);
+            if (error?.name === 'AbortError') {
+                notify.info('Yükleme iptal edildi.');
+            } else {
+                if (!(error instanceof FileLimitError) && !(error instanceof EmptyFileError)) console.error(error);
+                const prefix =
+                    error instanceof FileLimitError
+                        ? 'Dosya limiti aşıldı'
+                        : error instanceof EmptyFileError
+                          ? 'Dosya boş'
+                          : 'Yükleme başarısız';
+                notify.error(`${prefix}: ${error.message}`);
+            }
             this.reset();
             this.hud.setLoading(false);
-            const prefix =
-                error instanceof FileLimitError
-                    ? 'Dosya limiti aşıldı'
-                    : error instanceof EmptyFileError
-                      ? 'Dosya boş'
-                      : 'Yükleme başarısız';
-            notify.error(`${prefix}: ${error.message}`);
         } finally {
             this.busy = false;
+            this.abortController = null;
         }
     }
 
@@ -420,7 +556,9 @@ class GlbifyApp {
         this.animator = null;
         this.audit = null;
         this.model = null;
+        this.stats = null;
         this.baseName = 'model';
+        this.exportPanel.setEstimate('');
 
         this.hud.clearFileInfo();
         this.hud.setLoading(false);

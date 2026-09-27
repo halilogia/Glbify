@@ -85,7 +85,8 @@ export class Animator {
     }
 
     setSpeed(speed) {
-        this.speed = THREE.MathUtils.clamp(Number(speed) || 1, 0.1, 4);
+        const value = Number(speed);
+        this.speed = Number.isFinite(value) ? THREE.MathUtils.clamp(value, 0.1, 4) : 1;
         this.action?.setEffectiveTimeScale(this.speed);
         this.notify();
     }

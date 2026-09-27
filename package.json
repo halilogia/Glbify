@@ -1,6 +1,6 @@
 {
   "name": "glbify",
-  "version": "2.1.0",
+  "version": "2.2.0",
   "private": true,
   "type": "module",
   "description": "Tarayıcı tabanlı 3D model dönüştürücü ve görüntüleyici (FBX, GLB/GLTF, OBJ, STL, USDZ).",
@@ -10,6 +10,9 @@
     "build": "node scripts/sync-decoders.mjs && vite build",
     "preview": "vite preview",
     "icons": "node scripts/generate-icons.mjs",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:e2e": "node tests/e2e/app.spec.mjs",
     "postinstall": "node scripts/sync-decoders.mjs"
   },
   "dependencies": {
@@ -17,13 +20,17 @@
     "@gltf-transform/extensions": "^4.5.0",
     "@gltf-transform/functions": "^4.5.0",
     "draco3dgltf": "^1.5.7",
+    "ktx2-encoder": "^0.6.0",
+    "meshoptimizer": "^1.3.0",
     "three": "^0.186.1"
   },
   "devDependencies": {
     "@tailwindcss/vite": "^4.3.3",
+    "puppeteer": "^24.43.1",
     "sharp": "^0.34.4",
     "tailwindcss": "^4.3.3",
     "vite": "^8.3.1",
-    "vite-plugin-pwa": "^1.3.0"
+    "vite-plugin-pwa": "^1.3.0",
+    "vitest": "^5.0.2"
   }
 }

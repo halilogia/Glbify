@@ -11,6 +11,13 @@ const defaults = {
     usdzQuickLook: false,
     draco: true,
     dracoLevel: 'balanced',
+    meshopt: false,
+    meshoptLevel: 'high',
+    simplifyRatio: 0,
+    weld: true,
+    ktx2: false,
+    uastc: false,
+    workerParse: true,
 };
 
 let state = read();

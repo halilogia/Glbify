@@ -23,26 +23,34 @@ export class EmptyFileError extends Error {
     }
 }
 
-export async function readFile(file, { limitBytes, onProgress } = {}) {
+export async function readFile(file, { limitBytes, onProgress, signal } = {}) {
     if (file.size === 0) throw new EmptyFileError(file);
     if (limitBytes && file.size > limitBytes) throw new FileLimitError(file, limitBytes);
+    signal?.throwIfAborted();
 
-    if (typeof file.stream !== 'function') return readWithFileReader(file, onProgress);
+    if (typeof file.stream !== 'function') return readWithFileReader(file, onProgress, signal);
 
     const reader = file.stream().getReader();
     const chunks = [];
     let loaded = 0;
 
-    for (;;) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        chunks.push(value);
-        loaded += value.byteLength;
-        if (limitBytes && loaded > limitBytes) {
-            await reader.cancel();
-            throw new FileLimitError(file, limitBytes);
+    const abort = () => reader.cancel(new DOMException('İptal edildi', 'AbortError'));
+    signal?.addEventListener('abort', abort, { once: true });
+
+    try {
+        for (;;) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            chunks.push(value);
+            loaded += value.byteLength;
+            if (limitBytes && loaded > limitBytes) {
+                await reader.cancel();
+                throw new FileLimitError(file, limitBytes);
+            }
+            onProgress?.({ loaded, total: file.size, ratio: file.size ? loaded / file.size : 0 });
         }
-        onProgress?.({ loaded, total: file.size, ratio: file.size ? loaded / file.size : 0 });
+    } finally {
+        signal?.removeEventListener('abort', abort);
     }
 
     const buffer = new Uint8Array(loaded);
@@ -56,15 +64,20 @@ export async function readFile(file, { limitBytes, onProgress } = {}) {
     return buffer.buffer;
 }
 
-function readWithFileReader(file, onProgress) {
+function readWithFileReader(file, onProgress, signal) {
     return new Promise((resolve, reject) => {
         const reader = new FileReader();
+        const abort = () => reader.abort();
+        signal?.addEventListener('abort', abort, { once: true });
+
         reader.onerror = () => reject(reader.error ?? new Error('Dosya okunamadı.'));
+        reader.onabort = () => reject(new DOMException('İptal edildi', 'AbortError'));
         reader.onprogress = (event) => {
             if (!event.lengthComputable) return;
             onProgress?.({ loaded: event.loaded, total: event.total, ratio: event.loaded / event.total });
         };
         reader.onload = () => {
+            signal?.removeEventListener('abort', abort);
             onProgress?.({ loaded: file.size, total: file.size, ratio: 1 });
             resolve(reader.result);
         };

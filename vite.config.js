@@ -66,7 +66,13 @@ export default defineConfig({
       },
       workbox: {
         globPatterns: ['**/*.{js,css,html,png,svg,ico,wasm,json}'],
-        globIgnores: ['**/node_modules/**', '**/workbox-*.js', '**/registerSW.js', '**/sw.js'],
+        globIgnores: [
+          '**/node_modules/**',
+          '**/workbox-*.js',
+          '**/registerSW.js',
+          '**/sw.js',
+          '**/basis_encoder-*.wasm',
+        ],
         maximumFileSizeToCacheInBytes: 12 * 1024 * 1024,
         cleanupOutdatedCaches: true,
         clientsClaim: true,

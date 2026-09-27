@@ -2,6 +2,80 @@
 
 Tüm önemli değişiklikler bu dosyada belgelenir.
 
+## [2.2.0] - 2026-09-27
+
+### ✨ Eklenenler
+
+**Optimizasyon**
+
+- Mesh sadeleştirme (decimation) — meshopt simplifier, kaydırıcıyla hedef vertex oranı
+- Vertex birleştirme (weld) + duplicate temizliği (dedup) + kullanılmayan accessor temizliği (prune)
+- `EXT_meshopt_compression` çıktısı (meshoptimizer encoder, medium/high seviye)
+- KTX2 / Basis Universal doku sıkıştırma (`KHR_texture_basisu`): ETC1S (küçük) ve UASTC (kaliteli)
+- Export öncesi **boyut tahmini**: vertex/üçgen/doku sayılarından yaklaşık çıktı boyutu
+- Geometri sıkıştırma seçenekleri DRACO ile birlikte alternatiftir (ikisi aynı anda çalışmaz)
+
+**Büyük dosya performansı**
+
+- STL / PLY / OBJ ayrıştırması **Web Worker**'a taşındı (192 MB üzeri ve MTL'li OBJ hariç)
+- Yükleme ekranında **İptal** butonu (`AbortController` ile okuma ve işçi iptali)
+- **Bellek koruması**: `performance.memory` / `navigator.deviceMemory` üzerinden yararlanılabilir
+  yığın bütçesi hesaplanıyor; limiti aşan dosya okunmadan reddediliyor, %50 üzeri uyarı veriyor
+- Parse sonrası istatistik ve sahne hazırlığı ilerleme çubuğuna bağlandı
+
+**Test ve CI**
+
+- Vitest birim testleri (39 test): format, istatistik, animatör, materyal, importer kaydı, tahmin,
+  paylaşılabilir ayarlar
+- Puppeteer uçtan uca test paketi depoya taşındı: `tests/e2e/app.spec.mjs` (26 kontrol)
+- Test fixture'ları `tests/fixtures/` altında sürümlendi (küp STL/OBJ, PLY, 3MF, dokulu OBJ+MTL+PNG,
+  animasyonlu GLB)
+- GitHub Actions: birim testi → uçtan uca test → build → Pages dağıtımı ayrı iş adımları halinde
+- `npm test`, `npm run test:watch`, `npm run test:e2e` betikleri
+
+**PWA**
+
+- Kurulum istemi (install prompt) butonu ve "kuruldu" bildirimi
+- Sürüm geçmişi tutuluyor; güncelleme bildirimi `eski → yeni` sürümü gösteriyor
+- Önbellek kullanımı `navigator.storage.estimate()` ile gösteriliyor, tek tıkla temizlenebiliyor
+- Ayar linki paylaşımı: `?scale=100&draco=max&meshopt=1...` parametreleri okunur ve üretilir
+
+### 🔧 Düzeltmeler
+
+- **glTF-Transform `prune()` materyal dokularını siliyordu**: yalnızca materyal slotlarından
+  referans veren dokular kaldırılıyordu. Temizlik artık ACCESSOR/MESH/NODE ile sınırlandırıldı
+- Dokular KTX2'ye sıkıştırılmadan **önce** yeniden kodlanıyor (ters sırada "doku çözülemedi" hatası)
+- Worker'a gönderilen arabellek kopyalanarak aktarılıyor; aksi halde hata durumunda ana iş parçacığı
+  geri düşüşü bozuk (detached) tamponla çalışıyordu
+- Worker'da indekslenmemiş geometri (STL) çökerdi: transfer listesi indeks dizisi olmadığında hata veriyordu
+- `Animator.setSpeed(0)` değeri 1'e düşüyordu (`|| 1` kullanımı)
+- `sanitizeBaseName('...')` geçersiz dosya adı üretiyordu
+- `computeStats` iskelet'siz `SkinnedMesh` içeren modellerde çöküyordu
+- `src/config.js` modül yüklenirken `document` erişimi yapıyordu; Node testlerini engelliyordu
+  (asset yolları artık tembel çözülüyor)
+
+### 📦 Değişiklikler
+
+- Yeni bağımlılıklar: `meshoptimizer`, `ktx2-encoder` (Basis WASM), `vitest`, `puppeteer`
+- Üretim önbelleği 4.1 MB; 3.2 MB'lık Basis encoder önbellekten çıkarılıp ilk kullanımda
+  runtime cache'e alınıyor
+- Optimizasyon seçenekleri gelişmiş ayarlar bölümüne taşındı (birim, doku, DRACO, meshopt, sadeleştirme, KTX2)
+
+### ⏸️ Ertelenenler
+
+- **Doku atlaslama** — three.js ve glTF-Transform'da UV paketleyici yok; ayrı araştırma gerekiyor.
+  v3.0 "Değerlendirme" başlığında.
+- **Web Worker kapsamı** — FBX/GLTF/USD dokuları worker'da yüklenemiyor (worker'da `Image` yok);
+  bu formatlar ana iş parçacığında kalıyor.
+
+### 🧪 Doğrulama
+
+- Vitest: 39/39 birim testi geçti
+- Puppeteer e2e: üretim modunda 26/26, geliştirme modunda 25/25 (SW kaydı dev modunda bekleniyor)
+- Kapsanan akışlar: STL/PLY/3MF/OBJ+MTL yükleme, worker ayrıştırma, GLB+DRACO, USDZ, STL/OBJ çıktı,
+  JPEG dönüşümü, normal haritası üretimi, EXT_meshopt_compression, KHR_texture_basisu, animasyon
+  oynatma, gizmo + birim ölçeği, ayar linki, bellek koruması, çevrimdışı yükleme, konsol temizliği
+
 ## [2.1.0] - 2026-09-27
 
 ### ✨ Eklenenler

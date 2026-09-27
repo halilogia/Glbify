@@ -50,7 +50,14 @@ public/draco/
 *.usd
 *.usda
 *.usdc
+*.ply
+*.3mf
+*.mtl
 out/
+tests/e2e/out/
+
+# Test fixture'ları istisna
+!tests/fixtures/**
 
 # Brain klasöründeki geçici dosyalar
 brain/.chat-history/

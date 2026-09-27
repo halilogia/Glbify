@@ -22,12 +22,20 @@ Tarayıcı tabanlı 3D model dönüştürücü ve görüntüleyici. FBX, GLB/GLT
 | 3MF | GLB, USDZ, STL, OBJ | Baskı kütüphaneleri |
 | USD / USDZ | GLB, USDZ, STL, OBJ | - |
 
-### 🗜️ DRACO Sıkıştırma
+### 🗜️ Sıkıştırma ve Optimizasyon
 
-- `KHR_draco_mesh_compression` uzantısı ile GLB çıktısı
-- Üç kalite seviyesi (yüksek / dengeli / maksimum sıkıştırma)
-- Encoder yalnızca ihtiyaç duyulduğunda yüklenir (tembel yükleme)
-- Dışa aktarımda kazanılan yüzde arayüzde gösterilir
+- **DRACO** (`KHR_draco_mesh_compression`) veya **Meshopt** (`EXT_meshopt_compression`) geometri sıkıştırma
+- **Mesh sadeleştirme**: kaydırıcıyla hedef vertex oranı (meshopt simplifier)
+- **Vertex birleştirme** (weld) + duplicate temizliği
+- **KTX2 / Basis Universal** doku sıkıştırma: ETC1S (küçük) veya UASTC (kaliteli)
+- Export öncesi **tahmini çıktı boyutu** (vertex/üçgen/doku sayılarından)
+- Dışa aktarımda gerçek kazanılan yüzde arayüzde gösterilir
+
+### ⚡ Performans
+
+- STL / PLY / OBJ ayrıştırması **Web Worker**'da çalışır, arayüz donmaz
+- Yükleme ekranında **İptal** butonu
+- Cihaz belleği bütçesine göre otomatik dosya limiti (limit aşımı okuma başlamadan reddedilir)
 
 ### 🎨 Doku ve Materyal İşleme
 
@@ -77,8 +85,10 @@ Tarayıcı tabanlı 3D model dönüştürücü ve görüntüleyici. FBX, GLB/GLT
 ### 📴 PWA / Çevrimdışı
 
 - Service worker ile uygulama kabuğu ve WASM decoder'lar önbelleklenir
-- Kurulabilir PWA (manifest + maskable ikonlar)
-- Çevrimdışı/çevrimiçi rozeti ve güncelleme bildirimi
+- Kurulabilir PWA (manifest + maskable ikonlar) ve kurulum istemi butonu
+- Çevrimdışı/çevrimiçi rozeti, sürüm geçmişi ve güncelleme bildirimi
+- Önbellek kullanımı gösterilir ve tek tıkla temizlenir
+- Ayar linki paylaşımı: `?scale=100&draco=max&meshopt=1` parametreleri okunur
 - Üçüncü parti CDN yok: tüm bağımlılıklar paketlenir
 
 ### 🎨 Arayüz
@@ -108,10 +118,17 @@ npm run dev       # Geliştirme sunucusu (http://localhost:5173)
 npm run build     # dist/ klasörüne üretim derlemesi
 npm run preview   # Üretim derlemesini yerel sunucuda dene
 npm run icons     # PWA ikonlarını yeniden üret (sharp)
+npm test          # Vitest birim testleri
+npm run test:e2e  # Puppeteer uçtan uca test (önce build + preview gerekir)
 ```
 
 Üretim çıktısı `dist/` klasörüne yazılır. GitHub Pages dağıtımı
-`.github/workflows/deploy.yml` ile `main` dalından otomatik yapılır.
+`.github/workflows/deploy.yml` ile `main` dalından otomatik yapılır: birim testi → uçtan uca test →
+build → dağıtım.
+
+E2E testleri `npm run build && npm run preview` ile servis edilen yapıyı kullanır; farklı bir adres
+için `GLBY_BASE_URL` verilebilir. İlk çalıştırmada Chrome indirilmesi gerekebilir:
+`npx puppeteer browsers install chrome`.
 
 ## 📦 Proje Yapısı
 
@@ -122,6 +139,10 @@ Glbify/
 ├── scripts/
 │   ├── sync-decoders.mjs     # DRACO encoder dosyalarını public/ altına kopyalar
 │   └── generate-icons.mjs    # PWA ikonlarını üretir
+├── tests/
+│   ├── unit/                 # Vitest birim testleri
+│   ├── e2e/                  # Puppeteer uçtan uca test
+│   └── fixtures/             # Test modelleri (küp STL/OBJ, PLY, 3MF, OBJ+MTL+PNG, animasyonlu GLB)
 ├── public/
 │   ├── draco/                # Üretilen decoder/encoder dosyaları (gitignored)
 │   ├── icons/                # PWA ikonları
@@ -137,12 +158,15 @@ Glbify/
 │   ├── io/
 │   │   ├── importers.js      # FBX, GLTF, OBJ(+MTL), STL, PLY, 3MF, USD okuyucuları
 │   │   ├── exporters.js      # GLB, USDZ, STL, OBJ yazıcıları
-│   │   ├── gltfPostprocess.js# DRACO + doku format/normal işlemleri
+│   │   ├── gltfPostprocess.js# DRACO/Meshopt + sadeleştirme + KTX2 + doku işlemleri
+│   │   ├── workerParser.js   # Web Worker tabanlı STL/PLY/OBJ ayrıştırma
+│   │   ├── parseWorker.js    # Worker gövdesi
+│   │   ├── estimate.js       # Çıktı boyutu tahmini
 │   │   ├── textureOps.js     # Canvas tabanlı doku kodlama/işleme
 │   │   ├── usdz.js           # USDZ paket doğrulaması
 │   │   ├── materials.js      # Phong -> Standard dönüşümü, renk uzayı denetimi, MTL uygulama
 │   │   ├── modelStats.js     # Mesh / vertex / üçgen istatistikleri
-│   │   ├── fileReader.js     # Limit kontrollü, ilerlemeli dosya okuma
+│   │   ├── fileReader.js     # Limit kontrollü, iptal edilebilir dosya okuma
 │   │   └── download.js       # Blob indirme yardımcısı
 │   ├── ui/
 │   │   ├── dropzone.js       # Çoklu dosya sürükle-bırak ve dosya seçici
@@ -163,10 +187,13 @@ Glbify/
 - **Vite 8** - Geliştirme sunucusu ve üretim derlemesi
 - **Tailwind CSS 4** - Utility-first CSS
 - **vite-plugin-pwa / Workbox** - Service worker ve manifest
-- **glTF-Transform 4 + draco3dgltf** - DRACO sıkıştırma ve doku post-process
+- **glTF-Transform 4 + draco3dgltf** - Sıkıştırma, sadeleştirme ve doku post-process
+- **meshoptimizer** - `EXT_meshopt_compression` ve mesh simplifier
+- **ktx2-encoder (Basis)** - KTX2 / `KHR_texture_basisu` doku sıkıştırma
 - **FBXLoader, GLTFLoader, OBJLoader, MTLLoader, STLLoader, PLYLoader, ThreeMFLoader, USDLoader** - Okuyucular
 - **GLTFExporter, USDZExporter, OBJExporter, STLExporter** - Yazıcılar
 - **TransformControls, OrbitControls** - Model düzenleme ve kamera
+- **Vitest, Puppeteer** - Birim ve uçtan uca testler
 
 ## 💡 Kullanım
 

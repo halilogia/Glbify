@@ -18,7 +18,7 @@ Glbify/
 │   └── favicon.png
 ├── src/
 │   ├── main.js               # Uygulama denetleyicisi (GlbifyApp)
-│   ├── config.js             # Limitler, DRACO seviyeleri, doku MIME, asset URL'leri
+│   ├── config.js             # Limitler, DRACO seviyeleri, asset URL'leri (tembel çözülür)
 │   ├── core/
 │   │   ├── viewer.js         # Sahne, kamera, ışık, grid, render döngüsü
 │   │   ├── decoders.js       # DRACO / KTX2 / meshopt kayıtları
@@ -27,21 +27,29 @@ Glbify/
 │   ├── io/
 │   │   ├── importers.js      # FBX, GLTF, OBJ(+MTL), STL, PLY, 3MF, USD
 │   │   ├── exporters.js      # GLB, USDZ, STL, OBJ
-│   │   ├── gltfPostprocess.js# DRACO + doku post-process
+│   │   ├── gltfPostprocess.js# weld/dedup/prune, simplify, DRACO/Meshopt, KTX2, doku
+│   │   ├── workerParser.js   # Worker istemcisi + main thread geri düşüşü
+│   │   ├── parseWorker.js    # Worker gövdesi
+│   │   ├── estimate.js       # Çıktı boyutu tahmini
 │   │   ├── textureOps.js     # Canvas doku kodlama/işleme
 │   │   ├── usdz.js           # USDZ paket doğrulaması
 │   │   ├── materials.js      # Phong → Standard, renk uzayı denetimi, MTL uygulama
 │   │   ├── modelStats.js     # Mesh / vertex / üçgen istatistikleri
-│   │   ├── fileReader.js     # Limit ve boş dosya kontrollü okuma
+│   │   ├── fileReader.js     # Limit/boş dosya kontrollü, iptal edilebilir okuma
 │   │   └── download.js       # Blob indirme
 │   ├── ui/                   # dropzone, exportPanel, hud, toast
-│   ├── utils/                # format, store, dom, dispose
-│   ├── pwa/serviceWorker.js  # SW kaydı + çevrimdışı takibi
+│   ├── utils/                # format, store, share, dom, dispose, memory
+│   ├── pwa/                  # serviceWorker.js, install.js
 │   ├── shims/node-builtins.js# node:* taklidi (glTF-Transform)
 │   └── styles/main.css       # Tailwind v4 katmanları + bileşen CSS'i
-├── docs/KNOWLEDGE.md         # Format kuralları, post-process ve build notları
+├── tests/
+│   ├── unit/                 # Vitest birim testleri
+│   ├── e2e/app.spec.mjs      # Puppeteer uçtan uca test
+│   └── fixtures/             # Test modelleri
+├── vitest.config.js
+├── docs/KNOWLEDGE.md         # Format kuralları, post-process, worker ve build notları
 ├── ARCHITECTURE.md           # Katman sınırları, boru hattı, doğrulama
-└── .github/workflows/        # Pages dağıtımı
+└── .github/workflows/        # test → e2e → build → Pages
 ```
 
 ## 🔧 Teknoloji Stack
@@ -96,41 +104,54 @@ Glbify/
 2. **Ölçekleme**: Dönüşüm artık model üzerinde kalıcıdır; gizmo proxy'si kullanıcı ölçeğini,
    `unitScale` ise hedef yazılım çevrimini tutar (`model.scale = proxy.scale * unitScale`).
    Dışa aktarma ölçeği değiştirmez, sadece dosya adına etiket yazar.
-3. **DRACO ve doku işlemleri**: `gltfPostprocess.js` içinde tek geçişte yapılır; `getAlphaTexture()`
-   gltf-Transform v4'te yoktur (alpha, base color dokusunun içindedir).
-4. **OBJ + MTL**: MTL kitaplığı `loader.setMaterials(...)` ile verilir; doku dosyaları data URL olarak
+3. **glTF-Transform `prune()`**: bare çağrı materyal dokularını siler. Sadece
+   `PRUNE_PROPERTY_TYPES` (ACCESSOR/MESH/NODE) ile çağır.
+4. **İşlem sırası**: doku dönüşümü/normal üretimi **önce**, KTX2 sıkıştırma **sonra** yapılır.
+   `EXT_meshopt_compression` ve DRACO alternatiftir, aynı anda kullanılmaz.
+5. **Worker**: buffer kopyalanarak aktarılır (transfer orijinali detach eder). İndekslenmemiş
+   geometrilerde transfer listesi boş olabilir. OBJ + MTL worker'da çalışmaz (worker'da `Image` yok).
+6. **OBJ + MTL**: MTL kitaplığı `loader.setMaterials(...)` ile verilir; doku dosyaları data URL olarak
    MTL metnine yazılır.
-5. **Dosya limiti**: `src/io/fileReader.js` limiti okuma öncesi ve taşma anında, boş dosyayı da kontrol eder.
-6. **Offline**: Yeni bir WASM/decoder dosyası eklersen `vite.config.js` içindeki
+7. **Dosya limiti**: `src/io/fileReader.js` limiti ve boş dosyayı kontrol eder;
+   `src/utils/memory.js` cihaz belleğine göre erken reddetme yapar.
+8. **Offline**: Yeni bir WASM/decoder dosyası eklersen `vite.config.js` içindeki
    `globPatterns` ve `maximumFileSizeToCacheInBytes` değerlerini kontrol et.
-7. **Layout**: Paneller akış içinde (`margin-top: auto`), mutlak konumlandırma yok; aksi halde
+9. **Layout**: Paneller akış içinde (`margin-top: auto`), mutlak konumlandırma yok; aksi halde
    yüksek başlık paneli altındaki düğmelerin tıklamalarını yutar.
-8. **three.js r186**: `USDLoader` (`USDZLoader` deprecated), `OBJLoader.setMaterials()`,
-   `TransformControls.getHelper()` ve paketlenmiş decoder URL'leri kullanılır.
+10. **Node uyumluluğu**: `src/config.js` ve `src/utils/**` birim testlerinde (Node, DOM yok)
+    çalışmalı; `document`/`window` erişimini modül yüklenirken yapma.
+11. **three.js r186**: `USDLoader` (`USDZLoader` deprecated), `OBJLoader.setMaterials()`,
+    `TransformControls.getHelper()` ve paketlenmiş decoder URL'leri kullanılır.
 
 ## 🧪 Test Etme
 
 ```bash
-npm run dev       # geliştirme sunucusu
+npm test          # Vitest birim testleri
 npm run build     # üretim derlemesi (dist/)
 npm run preview   # üretim çıktısını sun
+npm run test:e2e  # Puppeteer uçtan uca test (GLBY_BASE_URL ile adres değiştirilebilir)
 ```
 
 Manuel kontrol listesi:
 
 1. `npm run build` uyarısız tamamlanıyor, `dist/` içinde `sw.js` ve `manifest.webmanifest` var
 2. FBX, GLB, OBJ, STL, PLY, 3MF yükleniyor; istatistik paneli doğru değerleri gösteriyor
-3. OBJ + MTL + doku birlikte bırakılınca materyal rengi ve haritası uygulanıyor
-4. GLB/GLTF içe aktarımında DRACO'lu, KTX2'li ve meshopt'lu dosyalar açılıyor
-5. GLB + DRACO çıktısı `KHR_draco_mesh_compression` içeriyor ve yeniden yüklenebiliyor
-6. JPEG/WebP doku seçimi çıktıda `image/jpeg` / `image/webp` olarak görünüyor
-7. "Diffuse'dan normal üret" seçeneği `normalTexture` üretiyor
-8. Gizmo modları çalışıyor; "Sıfırla" ve "Çerçevele" beklenen sonucu veriyor
-9. Animasyonlu modelde klip/timeline/hız/döngü kontrolleri çalışıyor
-10. USDZ geçerli ZIP; doku ve animasyon karesi bildirimi geliyor
-11. Limit seçilen değerin üzerindeki dosya reddediliyor
-12. Service worker kurulduktan sonra sayfa çevrimdışı yeniden yükleniyor
-13. Konsolda hata yok
+3. STL/PLY/OBJ için "arka plan işçisinde yapıldı" bildirimi çıkıyor
+4. OBJ + MTL + doku birlikte bırakılınca materyal rengi ve haritası uygulanıyor
+5. GLB/GLTF içe aktarımında DRACO'lu, KTX2'li ve meshopt'lu dosyalar açılıyor
+6. GLB + DRACO çıktısı `KHR_draco_mesh_compression` içeriyor ve yeniden yüklenebiliyor
+7. Meshopt seçeneği `EXT_meshopt_compression`, KTX2 seçeneği `KHR_texture_basisu` yazıyor
+8. JPEG/WebP doku seçimi çıktıda `image/jpeg` / `image/webp` olarak görünüyor
+9. Weld açıkken de base color dokusu kaybolmuyor
+10. "Diffuse'dan normal üret" seçeneği `normalTexture` üretiyor
+11. Boyut tahmini seçenek değişince güncelleniyor
+12. Gizmo modları çalışıyor; "Sıfırla" ve "Çerçevele" beklenen sonucu veriyor
+13. Animasyonlu modelde klip/timeline/hız/döngü kontrolleri çalışıyor
+14. USDZ geçerli ZIP; doku ve animasyon karesi bildirimi geliyor
+15. Büyük dosya bellek korumasıyla reddediliyor, İptal butonu çalışıyor
+16. Ayar linki kopyalanıyor ve `?scale=100` gibi parametreler uygulanıyor
+17. Service worker kurulduktan sonra sayfa çevrimdışı yeniden yükleniyor
+18. Konsolda hata yok
 
 ## 📝 Commit Mesaj Formatı
 

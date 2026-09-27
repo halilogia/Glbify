@@ -35,7 +35,13 @@ export function computeStats(object) {
         if (child.isBone) stats.bones += 1;
     });
 
-    const box = new THREE.Box3().setFromObject(object);
+    const box = new THREE.Box3();
+    try {
+        box.setFromObject(object);
+    } catch {
+        // Bozuk iskelet (skeleton'sız SkinnedMesh) boyut hesabini engelleyebilir.
+        return stats;
+    }
     if (!box.isEmpty()) stats.size.copy(box.getSize(new THREE.Vector3()));
 
     return stats;

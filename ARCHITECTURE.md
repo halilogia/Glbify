@@ -19,19 +19,23 @@ bundled with Vite, works offline as a PWA and never sends assets to a server.
 
 ```mermaid
 flowchart LR
-    Input["Drop / Upload (.fbx .glb .gltf .obj .mtl .stl .ply .3mf .usdz)"] --> Limit{"Size ok, not empty?"}
-    Limit -->|No| Reject["Toast: limit aşıldı / dosya boş"]
-    Limit -->|Yes| Read["Chunked File.stream() read + progress"]
-    Read --> Parse["importer.parse (io/importers.js)"]
-    Parse --> Prepare["io/materials.js: Phong -> Standard, color spaces"]
+    Input["Drop / Upload (.fbx .glb .gltf .obj .mtl .stl .ply .3mf .usdz)"] --> Guard{"Size / memory / empty?"}
+    Guard -->|No| Reject["Toast: limit aşıldı / boş / bellek"]
+    Guard -->|Yes| Read["Chunked File.stream() read + progress + cancel"]
+    Read --> Worker{"STL / PLY / OBJ?"}
+    Worker -->|Yes| W["io/parseWorker.js (transferable typed arrays)"]
+    Worker -->|No| Main["io/importers.js (main thread)"]
+    W --> Prepare
+    Main --> Prepare["io/materials.js: Phong -> Standard, color spaces"]
     Prepare --> Audit["io/materials.js: renk uzayı denetimi"]
     Audit --> Scene["core/viewer.js: center + fit + grid"]
     Scene --> Gizmo["core/transformController.js: gizmo + unit scale"]
     Scene --> Anim["core/animator.js: klip / transport"]
+    Gizmo --> Estimate["io/estimate.js: tahmini çıktı boyutu"]
     Gizmo --> Export["exporters[format].run (io/exporters.js)"]
     Anim --> Export
-    Export --> Post{"GLB && (DRACO || doku işlemi)?"}
-    Post -->|Yes| PostPass["io/gltfPostprocess.js: draco() + doku"]
+    Export --> Post{"GLB && optimizasyon?"}
+    Post -->|Yes| PostPass["io/gltfPostprocess.js: weld/dedup/prune, simplify, DRACO|meshopt, doku, KTX2"]
     Post -->|No| Blob["Blob URL download"]
     PostPass --> Blob
 ```
@@ -44,18 +48,19 @@ flowchart LR
 | `src/core` | three.js runtime (scene graph, render loop, decoder registration, gizmo, animation mixer) |
 | `src/io` | Format-specific work: importers, exporters, post-processing, materials, stats, file IO |
 | `src/ui` | DOM wiring: drop zone, export panel, HUD, animation panel, toasts (no three.js imports) |
-| `src/utils` | Framework-free helpers: formatting, settings store, GPU disposal |
-| `src/pwa` | Service worker registration and online/offline tracking |
-| `src/config.js` | Single source of truth for limits, DRACO presets, texture MIME types and asset URLs |
+| `src/utils` | Framework-free helpers: formatting, settings store, share links, memory guard, GPU disposal |
+| `src/pwa` | Service worker registration, install prompt, version history, cache management |
+| `src/config.js` | Single source of truth for limits, DRACO levels, texture MIME types and asset URLs |
 
 Rules:
 - `core` and `io` never touch the DOM except for file input and download anchors.
 - `ui` never imports three.js; it only emits callbacks.
-- The glTF-Transform + Draco encoder chunk is loaded lazily, only when DRACO or a texture operation runs.
+- The glTF-Transform + Draco/Meshopt/Basis chunk is loaded lazily, only when an optimization runs.
 - The gizmo drives a proxy object; the model transform is `proxy × unitScale` so target-software changes
   never destroy user edits.
 - UI panels stay in normal document flow; absolutely positioned overlays swallow clicks once the header
   grows.
+- `src/config.js` and `src/utils/**` must stay importable in Node (unit tests run without a DOM).
 
 ## 📂 5. Project Layout
 
@@ -103,11 +108,15 @@ flowchart TB
 
 - Build gate: `npm run build` must complete without warnings; `dist/sw.js` and
   `dist/manifest.webmanifest` must exist.
-- Manual checklist lives in `GEMINI.md` (loaders, DRACO round-trip, USDZ, STL, limits, offline).
-- End-to-end browser checks were executed with a headless Chrome harness against `npm run preview`:
-  page load, service worker registration, manifest, STL/OBJ/DRACO-GLB import, GLB (with and without
-  DRACO), USDZ, STL, OBJ downloads, file size limit rejection, offline reload, console error check.
-- Unit tests (Vitest) and Playwright E2E are planned in the roadmap, not yet present.
+- `npm test` — Vitest unit tests over Node-importable modules (formatting, statistics, animator,
+  materials, importer registry, estimates, share links). No DOM required.
+- `npm run test:e2e` — Puppeteer harness over `npm run preview`; `GLBY_BASE_URL` selects the address.
+  Covers loaders, worker parsing, all four exporters, DRACO/Meshopt/KTX2 verification inside the
+  produced GLB, animation transport, gizmo, unit scaling, share link, memory guard, offline reload
+  and console cleanliness. Dev-mode runs skip the service worker and offline assertions.
+- Fixtures are committed under `tests/fixtures/`; the `.gitignore` model-extension rules are negated
+  for that directory.
+- Manual checklist lives in `GEMINI.md`.
 
 ## 🔁 9. Extending
 
@@ -116,5 +125,6 @@ flowchart TB
 | New input format | `src/io/importers.js` registry |
 | New output format | `src/io/exporters.js` registry + `index.html` button |
 | New export option | `src/config.js` presets + `src/ui/exportPanel.js` binding |
+| New post-process step | `src/io/gltfPostprocess.js` (respect the order: geometry → texture → KTX2) |
+| Worker-parseable format | `src/io/parseWorker.js` + `WORKER_FORMATS` in `workerParser.js` |
 | New UI panel | `index.html` markup + `src/ui/*.js` module |
-| Offline asset | `scripts/sync-decoders.mjs` + `vite.config.js` `globPatterns` |

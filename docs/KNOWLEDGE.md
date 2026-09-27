@@ -53,21 +53,39 @@ exporter.parseAsync(model, {
 
 ## 🎨 Post-Processing Pipeline
 
-`src/io/gltfPostprocess.js` runs only when DRACO or a texture operation is requested, so the
-gltf-Transform chunk (≈285 kB) stays lazy:
+`src/io/gltfPostprocess.js` runs only when a geometry or texture operation is requested, so the
+gltf-Transform chunk stays lazy:
 
 1. `NodeIO` with `ALL_EXTENSIONS` registered (reading third-party GLB extensions safely).
-2. Optional `draco()` transform.
-3. Texture pass, per glTF role:
+2. Geometry cleanup: `weld()` → `dedup()` → `prune({ propertyTypes: [ACCESSOR, MESH, NODE] })`.
+   **Do not call bare `prune()`**: it removes textures that are only referenced from material
+   slots, silently dropping base colour maps.
+3. Decimation: `simplify({ simplifier: MeshoptSimplifier, ratio, error })` — the simplifier ships
+   with three.js (`three/addons/libs/meshopt_simplifier.module.js`), the encoder does not, so
+   `meshoptimizer` is a direct dependency.
+4. Geometry compression: `draco()` **or** `meshopt({ encoder })` — they are alternatives.
+5. Texture work (before KTX2, otherwise the KTX2 payload is not decodable):
    - `normal` + invert → green channel flipped, re-encoded as PNG.
-   - color roles (`baseColor`, `emissive`) + format option → re-encoded to PNG/JPEG/WebP with quality.
-   - data maps are never written as lossy formats.
-   - `generateNormals` → Sobel filter on the base color image creates a new `Texture` and assigns it with
-     `material.setNormalTexture()`.
-4. `io.writeBinary(document)`.
+   - colour roles (`baseColor`, `emissive`) + format option → re-encoded to PNG/JPEG/WebP.
+   - data maps are never written as lossy formats; already-`image/ktx2` textures are skipped.
+   - `generateNormals` → Sobel filter on the base colour image creates a new `Texture` and assigns
+     it with `material.setNormalTexture()`.
+6. `ktx2({ isUASTC, generateMipmap })` for Basis compression.
+7. `io.writeBinary(document)`.
 
-Alpha is part of the base color texture in glTF 2.0; `Material` has no `getAlphaTexture()` in
-gltf-Transform v4.
+Alpha is part of the base colour texture in glTF 2.0; `Material` has no `getAlphaTexture()` in
+gltf-Transform v4. The Basis encoder WASM (3.2 MB) is intentionally excluded from the Workbox
+precache and cached on first use instead.
+
+## ⚙️ Worker Parsing
+
+- `src/io/parseWorker.js` imports three itself (module worker) and serialises geometry as
+  transferable typed arrays.
+- The buffer is **copied** (`buffer.slice(0)`) before `postMessage` so the main thread keeps an
+  intact copy for the fallback path; transferring the original would detach it.
+- Transfer lists are built from the attributes that actually exist — STL geometries have no index.
+- Fallback to the main thread happens on any worker error, on `Worker`-less environments, for files
+  above 192 MB, and for OBJ dropped together with an MTL (textures need `Image`, which workers lack).
 
 ## 🧱 Build Notes
 
@@ -76,6 +94,16 @@ gltf-Transform v4.
 - `base: './'` keeps the output portable for GitHub Pages project subpaths.
 - `@gltf-transform/core` imports `node:fs` / `node:path` for its file-system helpers. Those code paths are not
   used in the browser, so `vite.config.js` aliases both to `src/shims/node-builtins.js` to keep the build clean.
+- `src/config.js` must stay Node-importable (unit tests): asset URLs are resolved lazily through
+  `assetUrl()` instead of touching `document.baseURI` at module scope.
+
+## 🧪 Testing
+
+- `npm test` — Vitest, `tests/unit/**`, node environment (no DOM).
+- `npm run test:e2e` — Puppeteer against `npm run preview`; `GLBY_BASE_URL` overrides the address.
+  Dev-mode runs skip the service worker and offline assertions.
+- Fixtures live in `tests/fixtures/` and are committed; the `.gitignore` model extensions are
+  negated for that directory.
 
 ## ✏️ Model Transform Model
 

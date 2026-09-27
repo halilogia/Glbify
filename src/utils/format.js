@@ -24,8 +24,11 @@ export function formatDimensions(size) {
 
 export function sanitizeBaseName(name) {
     const base = name.replace(/\.[^.]+$/, '').trim();
-    const safe = base.replace(/[\\/:*?"<>|]+/g, '_').replace(/\s+/g, '_');
-    return safe.length ? safe.slice(0, 80) : 'model';
+    const safe = base
+        .replace(/[\\/:*?"<>|]+/g, '_')
+        .replace(/\s+/g, '_')
+        .replace(/^[._]+|[._]+$/g, '');
+    return /[\p{L}\p{N}]/u.test(safe) ? safe.slice(0, 80) : 'model';
 }
 
 export function extensionOf(fileName) {

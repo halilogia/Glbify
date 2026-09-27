@@ -2,8 +2,9 @@ import { setDisabled, setHidden, setText } from '../utils/dom.js';
 import { setSettings } from '../utils/store.js';
 
 const TEXTURE_FORMATS = ['original', 'png', 'jpeg', 'webp'];
+const MESHOPT_LEVELS = ['medium', 'high'];
 
-export function createExportPanel({ elements, settings, onExport, onUnitScaleChange }) {
+export function createExportPanel({ elements, settings, onExport, onUnitScaleChange, onOptionsChange }) {
     const {
         scaleSelect,
         textureSelect,
@@ -17,6 +18,12 @@ export function createExportPanel({ elements, settings, onExport, onUnitScaleCha
         dracoToggle,
         dracoLevel,
         dracoLevelField,
+        meshoptToggle,
+        simplifyRatio,
+        simplifyValue,
+        weldToggle,
+        ktx2Toggle,
+        sizeEstimate,
         exportProgress,
         exportBar,
         exportStatus,
@@ -34,15 +41,23 @@ export function createExportPanel({ elements, settings, onExport, onUnitScaleCha
     usdzQuickLook.checked = settings.usdzQuickLook;
     dracoToggle.checked = settings.draco;
     dracoLevel.value = settings.dracoLevel;
+    meshoptToggle.checked = settings.meshopt;
+    simplifyRatio.value = String(settings.simplifyRatio);
+    weldToggle.checked = settings.weld;
+    ktx2Toggle.checked = settings.ktx2;
     limitSelect.value = String(settings.maxFileMB);
     syncQuality();
-    syncDracoLevel();
+    syncSimplify();
+    syncCompression();
 
     for (const [format, button] of Object.entries(buttons)) {
         button.addEventListener('click', () => onExport(format));
     }
 
-    const persist = () => setSettings(getOptions());
+    const persist = () => {
+        setSettings(getOptions());
+        onOptionsChange?.(getOptions());
+    };
 
     scaleSelect.addEventListener('change', () => {
         persist();
@@ -61,11 +76,21 @@ export function createExportPanel({ elements, settings, onExport, onUnitScaleCha
     invertNormals.addEventListener('change', persist);
     generateNormals.addEventListener('change', persist);
     usdzQuickLook.addEventListener('change', persist);
+    weldToggle.addEventListener('change', persist);
+    ktx2Toggle.addEventListener('change', persist);
+    meshoptToggle.addEventListener('change', () => {
+        syncCompression();
+        persist();
+    });
     dracoToggle.addEventListener('change', () => {
-        syncDracoLevel();
+        syncCompression();
         persist();
     });
     dracoLevel.addEventListener('change', persist);
+    simplifyRatio.addEventListener('input', () => {
+        syncSimplify();
+        persist();
+    });
 
     function syncQuality() {
         const lossy = textureFormat.value === 'jpeg' || textureFormat.value === 'webp';
@@ -73,8 +98,19 @@ export function createExportPanel({ elements, settings, onExport, onUnitScaleCha
         setText(qualityValue, Number(textureQuality.value).toFixed(2));
     }
 
-    function syncDracoLevel() {
+    function syncSimplify() {
+        const ratio = Number(simplifyRatio.value) || 0;
+        setText(
+            simplifyValue,
+            ratio > 0 ? `vertex %${Math.round(ratio * 100)}'ini koru` : 'Kapalı',
+        );
+    }
+
+    function syncCompression() {
         setHidden(dracoLevelField, !dracoToggle.checked);
+        const exclusive = meshoptToggle.checked && dracoToggle.checked;
+        meshoptToggle.parentElement.classList.toggle('opacity-50', exclusive);
+        if (exclusive) dracoToggle.checked = false;
     }
 
     function getOptions() {
@@ -89,6 +125,13 @@ export function createExportPanel({ elements, settings, onExport, onUnitScaleCha
             usdzQuickLook: usdzQuickLook.checked,
             draco: dracoToggle.checked,
             dracoLevel: dracoLevel.value,
+            meshopt: meshoptToggle.checked,
+            meshoptLevel: MESHOPT_LEVELS.includes(settings.meshoptLevel) ? settings.meshoptLevel : 'high',
+            simplifyRatio: Number(simplifyRatio.value) || 0,
+            simplifyError: 0.001,
+            weld: weldToggle.checked,
+            ktx2: ktx2Toggle.checked,
+            uastc: Boolean(settings.uastc),
             maxFileMB: Number.parseInt(limitSelect.value, 10) || settings.maxFileMB,
         };
     }
@@ -98,19 +141,29 @@ export function createExportPanel({ elements, settings, onExport, onUnitScaleCha
 
         setEnabled(enabled) {
             buttonList.forEach((button) => setDisabled(button, !enabled));
-            setDisabled(scaleSelect, !enabled);
-            setDisabled(textureSelect, !enabled);
-            setDisabled(textureFormat, !enabled);
-            setDisabled(textureQuality, !enabled);
-            setDisabled(invertNormals, !enabled);
-            setDisabled(generateNormals, !enabled);
-            setDisabled(usdzQuickLook, !enabled);
-            setDisabled(dracoToggle, !enabled);
-            setDisabled(dracoLevel, !enabled);
+            [
+                scaleSelect,
+                textureSelect,
+                textureFormat,
+                textureQuality,
+                invertNormals,
+                generateNormals,
+                usdzQuickLook,
+                dracoToggle,
+                dracoLevel,
+                meshoptToggle,
+                simplifyRatio,
+                weldToggle,
+                ktx2Toggle,
+            ].forEach((control) => setDisabled(control, !enabled));
         },
 
         setBusy(busy) {
             buttonList.forEach((button) => setDisabled(button, busy));
+        },
+
+        setEstimate(text) {
+            setText(sizeEstimate, text);
         },
 
         showProgress(visible) {
