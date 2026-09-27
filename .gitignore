@@ -24,8 +24,16 @@ npm-debug.log*
 # Build outputs
 dist/
 build/
+dev-dist/
 *.min.js
 *.min.css
+
+# Vite / PWA cache
+.vite/
+.cache/
+
+# Üretilen dosya (npm install / build sonrası scripts/sync-decoders.mjs)
+public/draco/
 
 # Temporary files
 *.tmp
@@ -38,6 +46,11 @@ build/
 *.gltf
 *.obj
 *.stl
+*.usdz
+*.usd
+*.usda
+*.usdc
+out/
 
 # Brain klasöründeki geçici dosyalar
 brain/.chat-history/
