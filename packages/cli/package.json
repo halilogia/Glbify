@@ -1,0 +1,34 @@
+{
+  "name": "@glbify/cli",
+  "version": "3.0.0",
+  "description": "Glbify komut satiri araclari: model inceleme, optimizasyon ve donusturme",
+  "license": "GPL-3.0",
+  "type": "module",
+  "bin": {
+    "glbify": "./bin/glbify.js"
+  },
+  "main": "./src/index.js",
+  "exports": {
+    ".": "./src/index.js"
+  },
+  "files": [
+    "bin",
+    "src",
+    "README.md"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "test": "node --test"
+  },
+  "dependencies": {
+    "@gltf-transform/core": "^4.5.0",
+    "@gltf-transform/extensions": "^4.5.0",
+    "@gltf-transform/functions": "^4.5.0",
+    "draco3dgltf": "^1.5.7",
+    "ktx2-encoder": "^0.6.0",
+    "meshoptimizer": "^1.3.0",
+    "three": "^0.186.1"
+  }
+}

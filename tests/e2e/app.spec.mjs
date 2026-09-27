@@ -74,6 +74,7 @@ async function main() {
     });
 
     await page.goto(BASE, { waitUntil: 'networkidle0' });
+    await page.waitForFunction(() => Boolean(globalThis.__glbify?.viewer), { timeout: 30000 });
 
     check('sayfa yuklendi', (await page.$('#drop-zone')) !== null);
     check('manifest yuklendi', Boolean(await page.evaluate(async () => {
@@ -153,13 +154,19 @@ async function main() {
 
         let created = null;
         for (let attempt = 0; attempt < 40 && !created; attempt += 1) {
-            created =
-                listOut()
-                    .filter((name) => exportExtensions.some((extension) => name.endsWith(extension)))
-                    .find((name) => {
-                        const previous = before.get(name);
-                        return previous === undefined || statSync(join(OUT, name)).mtimeMs > previous + 1;
-                    }) ?? null;
+            let newest = null;
+            let newestTime = 0;
+            for (const name of listOut()) {
+                if (!exportExtensions.some((extension) => name.endsWith(extension))) continue;
+                const previous = before.get(name);
+                const time = statSync(join(OUT, name)).mtimeMs;
+                if (previous !== undefined && time <= previous + 1) continue;
+                if (time > newestTime) {
+                    newest = name;
+                    newestTime = time;
+                }
+            }
+            created = newest;
             if (!created) await wait(250);
         }
 
@@ -372,7 +379,108 @@ async function main() {
         guard.slice(0, 120),
     );
 
-    // 15) Cevrimdisi yukleme (yalnizca uretim modunda)
+    // 15) v3: materyal editoru, undo/redo, sahne ayarlari, sistem paneli
+    await resetModel();
+    await uploadMany([join(fixtures, 'textured.obj'), join(fixtures, 'textured.mtl'), join(fixtures, 'albedo.png')]);
+
+    const materialPanel = await page.evaluate(() => {
+        document.querySelector('#btn-side').click();
+        document.querySelector('[data-panel="materials"]').click();
+        return {
+            cards: document.querySelectorAll('.material-card').length,
+            visible: !document.querySelector('#side-panel').classList.contains('hidden'),
+        };
+    });
+    check('materyal editoru listelendi', materialPanel.visible && materialPanel.cards >= 1, JSON.stringify(materialPanel));
+
+    const materialEdit = await page.evaluate(async () => {
+        const color = document.querySelector('.material-card input[type="color"]');
+        color.value = '#3366ff';
+        color.dispatchEvent(new Event('change', { bubbles: true }));
+        await new Promise((resolve) => setTimeout(resolve, 200));
+        const app = globalThis.__glbify;
+        let applied = null;
+        app.model.traverse((child) => {
+            if (child.isMesh) applied = `#${child.material.color.getHexString()}`;
+        });
+        return {
+            applied,
+            canUndo: !document.querySelector('#btn-undo').disabled,
+        };
+    });
+    check('materyal rengi degisti', materialEdit.applied === '#3366ff', JSON.stringify(materialEdit));
+    check('undo etkin', materialEdit.canUndo, JSON.stringify(materialEdit));
+
+    const undoRedo = await page.evaluate(async () => {
+        document.querySelector('#btn-undo').click();
+        await new Promise((resolve) => setTimeout(resolve, 200));
+        let afterUndo = null;
+        globalThis.__glbify.model.traverse((child) => {
+            if (child.isMesh) afterUndo = `#${child.material.color.getHexString()}`;
+        });
+        document.querySelector('#btn-redo').click();
+        await new Promise((resolve) => setTimeout(resolve, 200));
+        let afterRedo = null;
+        globalThis.__glbify.model.traverse((child) => {
+            if (child.isMesh) afterRedo = `#${child.material.color.getHexString()}`;
+        });
+        return { afterUndo, afterRedo };
+    });
+    check('undo/redo calisti', undoRedo.afterUndo === '#dc2828' && undoRedo.afterRedo === '#3366ff', JSON.stringify(undoRedo));
+
+    const sceneSettings = await page.evaluate(async () => {
+        document.querySelector('[data-panel="scene"]').click();
+        const slider = document.querySelector('#key-intensity');
+        slider.value = '4.5';
+        slider.dispatchEvent(new Event('input', { bubbles: true }));
+        await new Promise((resolve) => setTimeout(resolve, 200));
+        return {
+            key: globalThis.__glbify.viewer.lights.key.intensity,
+            background: `#${globalThis.__glbify.viewer.scene.background.getHexString()}`,
+            label: document.querySelector('#key-value').textContent,
+        };
+    });
+    check('sahne ayarlari uygulandi', Math.abs(sceneSettings.key - 4.5) < 0.01, JSON.stringify(sceneSettings));
+
+    const systemPanel = await page.evaluate(() => {
+        document.querySelector('[data-panel="system"]').click();
+        return {
+            backend: document.querySelector('#renderer-backend').textContent,
+            webgpu: document.querySelector('#cap-webgpu').textContent,
+            xr: document.querySelector('#cap-xr').textContent,
+            xrDisabled: document.querySelector('#btn-xr').disabled,
+        };
+    });
+    check('sistem paneli dolu', systemPanel.backend.length > 0 && systemPanel.webgpu.length > 0, JSON.stringify(systemPanel));
+
+    // 16) Animasyonda kare atlama
+    await resetModel();
+    await upload(join(fixtures, 'animated.glb'));
+    const animatedStep = await page.evaluate(async () => {
+        globalThis.__glbify.animator.setTime(0);
+        document.querySelector('#btn-next-frame').click();
+        await new Promise((resolve) => setTimeout(resolve, 150));
+        return globalThis.__glbify.animator.time;
+    });
+    check('kare atlama calisti', Math.abs(animatedStep - 1 / 30) < 0.01, String(animatedStep));
+
+    // 16) Salt goruntuleme modu
+    if (!isDev) {
+        const viewPage = await browser.newPage();
+        await viewPage.goto(`${BASE}?view=1`, { waitUntil: 'networkidle0' });
+        await viewPage.waitForFunction(() => Boolean(globalThis.__glbify?.viewer), { timeout: 30000 });
+        const viewState = await viewPage.evaluate(() => ({
+            controlsHidden: document.querySelector('#controls').classList.contains('hidden'),
+            toolbarHidden: document.querySelector('#edit-toolbar').classList.contains('hidden'),
+            mode: document.documentElement.dataset.mode,
+        }));
+        check('salt goruntuleme modu', viewState.controlsHidden && viewState.toolbarHidden && viewState.mode === 'view', JSON.stringify(viewState));
+        await viewPage.close();
+    } else {
+        check('salt goruntuleme modu (atlandi: dev)', true, '');
+    }
+
+    // 17) Cevrimdisi yukleme (yalnizca uretim modunda)
     if (isDev) {
         check('cevrimdisi sayfa yuklendi (atlandi: dev modu)', true, 'dev modunda SW kaydedilmiyor');
     } else {
@@ -395,7 +503,6 @@ async function main() {
 
     await page.screenshot({ path: join(OUT, 'app.png') });
     check('konsol hatasi yok', consoleErrors.length === 0, consoleErrors.slice(0, 4).join(' | '));
-
     await browser.close();
 
     const failed = results.filter((entry) => !entry.ok).length;

@@ -4,18 +4,20 @@ import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { disposeObject3D } from '../utils/dispose.js';
 
 export class Viewer {
-    constructor(container, { onContextLost } = {}) {
+    constructor(container, { renderer, backend = 'webgl2', PMREMGenerator = THREE.PMREMGenerator, onContextLost } = {}) {
         this.container = container;
+        this.backend = backend;
         this.onContextLost = onContextLost;
         this.model = null;
         this.mixer = null;
+        this.animator = null;
         this.lastFrameTime = performance.now();
 
         this.scene = new THREE.Scene();
         this.camera = new THREE.PerspectiveCamera(45, 1, 0.01, 1000000);
         this.camera.position.set(3, 3, 6);
 
-        this.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, powerPreference: 'high-performance' });
+        this.renderer = renderer ?? new THREE.WebGLRenderer({ antialias: true, alpha: true });
         this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
         this.renderer.outputColorSpace = THREE.SRGBColorSpace;
         this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
@@ -23,13 +25,22 @@ export class Viewer {
         this.renderer.domElement.style.display = 'block';
         container.appendChild(this.renderer.domElement);
 
-        this.pmrem = new THREE.PMREMGenerator(this.renderer);
-        this.scene.environment = this.pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+        this.environment = null;
+        try {
+            const pmrem = new PMREMGenerator(this.renderer);
+            this.environment = pmrem.fromScene(new RoomEnvironment(), 0.04);
+            this.scene.environment = this.environment.texture;
+            this.pmrem = pmrem;
+        } catch (error) {
+            console.warn('[glbify] environment hazırlanamadı:', error?.message);
+        }
 
-        this.ambient = new THREE.AmbientLight(0xffffff, 0.55);
-        this.directional = new THREE.DirectionalLight(0xffffff, 2.2);
-        this.directional.position.set(5, 10, 7);
-        this.scene.add(this.ambient, this.directional);
+        this.lights = {
+            fill: new THREE.AmbientLight(0xffffff, 0.55),
+            key: new THREE.DirectionalLight(0xffffff, 2.2),
+        };
+        this.lights.key.position.set(5, 10, 7);
+        this.scene.add(this.lights.fill, this.lights.key);
 
         this.controls = new OrbitControls(this.camera, this.renderer.domElement);
         this.controls.enableDamping = true;
@@ -39,6 +50,7 @@ export class Viewer {
         this.grid = new THREE.GridHelper(100, 100, 0x333333, 0x111111);
         this.grid.material.transparent = true;
         this.grid.material.opacity = 0.6;
+        this.grid.visible = false;
         this.scene.add(this.grid);
 
         this.resizeObserver = new ResizeObserver(() => this.resize());
@@ -51,6 +63,32 @@ export class Viewer {
 
         this.resize();
         this.renderer.setAnimationLoop(() => this.render());
+    }
+
+    supportsXR(mode = 'immersive-ar') {
+        return navigator.xr ? navigator.xr.isSessionSupported(mode) : Promise.resolve(false);
+    }
+
+    async startXR(mode = 'immersive-ar') {
+        if (!navigator.xr) throw new Error('WebXR desteklenmiyor');
+        const supported = await this.supportsXR(mode);
+        if (!supported) throw new Error('Bu cihaz AR/VR oturumunu desteklemiyor');
+
+        const { ARButton } = await import('three/addons/webxr/ARButton.js');
+        const button = ARButton.createButton(this.renderer);
+        button.style.display = 'none';
+        document.body.appendChild(button);
+        button.click();
+
+        this.renderer.xr.addEventListener('sessionstart', () => {
+            this.controls.enabled = false;
+            this.onXRChange?.(true);
+        });
+        this.renderer.xr.addEventListener('sessionend', () => {
+            this.controls.enabled = true;
+            button.remove();
+            this.onXRChange?.(false);
+        });
     }
 
     resize() {
@@ -131,7 +169,12 @@ export class Viewer {
         const radius = Math.max(box.getSize(new THREE.Vector3()).length() * 0.5, 0.01);
         this.grid.position.y = box.min.y - radius * 0.04;
         this.grid.scale.setScalar(Math.max((radius * 12) / 100, 0.01));
-        this.grid.visible = true;
+        this.grid.visible = this.gridEnabled !== false;
+    }
+
+    setGridEnabled(enabled) {
+        this.gridEnabled = enabled;
+        this.grid.visible = Boolean(enabled && this.model);
     }
 
     resetView() {

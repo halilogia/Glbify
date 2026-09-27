@@ -1,6 +1,9 @@
 {
   "name": "glbify",
-  "version": "2.2.0",
+  "version": "3.0.0",
+  "workspaces": [
+    "packages/*"
+  ],
   "private": true,
   "type": "module",
   "description": "Tarayıcı tabanlı 3D model dönüştürücü ve görüntüleyici (FBX, GLB/GLTF, OBJ, STL, USDZ).",
@@ -12,7 +15,9 @@
     "icons": "node scripts/generate-icons.mjs",
     "test": "vitest run",
     "test:watch": "vitest",
+    "test:cli": "node --test \"packages/cli/test/cli.test.js\"",
     "test:e2e": "node tests/e2e/app.spec.mjs",
+    "glbify": "node packages/cli/bin/glbify.js",
     "postinstall": "node scripts/sync-decoders.mjs"
   },
   "dependencies": {

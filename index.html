@@ -141,6 +141,82 @@
             </button>
         </header>
 
+        <aside id="side-panel" class="side-panel hidden" aria-label="Araçlar">
+            <div class="side-tabs" role="tablist">
+                <button type="button" class="side-tab is-active" data-panel="materials" role="tab">Materyal</button>
+                <button type="button" class="side-tab" data-panel="scene" role="tab">Sahne</button>
+                <button type="button" class="side-tab" data-panel="system" role="tab">Sistem</button>
+            </div>
+
+            <div id="panel-materials" class="side-body">
+                <p id="materials-empty" class="side-hint">Model yüklenince materyaller burada listelenir.</p>
+                <div id="material-list" class="flex flex-col gap-2"></div>
+            </div>
+
+            <div id="panel-scene" class="side-body hidden">
+                <label class="field">
+                    <span>Environment yoğunluğu: <b id="env-value" class="text-green-400">1.00</b></span>
+                    <input type="range" id="env-intensity" class="timeline" min="0" max="3" step="0.05" value="1">
+                </label>
+                <label class="field">
+                    <span>Ana ışık: <b id="key-value" class="text-green-400">2.2</b></span>
+                    <input type="range" id="key-intensity" class="timeline" min="0" max="6" step="0.1" value="2.2">
+                </label>
+                <label class="field">
+                    <span>Dolgu ışığı: <b id="fill-value" class="text-green-400">0.55</b></span>
+                    <input type="range" id="fill-intensity" class="timeline" min="0" max="3" step="0.05" value="0.55">
+                </label>
+                <label class="field">
+                    <span>Pozlama: <b id="exposure-value" class="text-green-400">1.00</b></span>
+                    <input type="range" id="exposure" class="timeline" min="0.2" max="2.5" step="0.05" value="1">
+                </label>
+                <label class="field">
+                    <span>Arka plan</span>
+                    <input type="color" id="background" class="color-input" value="#0b0b0f">
+                </label>
+                <label class="flex items-center gap-2 text-xs text-gray-300 cursor-pointer">
+                    <input type="checkbox" id="grid-toggle" class="toggle" checked>
+                    <span>Izgara görünür</span>
+                </label>
+            </div>
+
+            <div id="panel-system" class="side-body hidden">
+                <div class="side-kv">
+                    <span>Renderer</span>
+                    <b id="renderer-backend">-</b>
+                </div>
+                <div class="side-kv">
+                    <span>WebGPU</span>
+                    <b id="cap-webgpu">-</b>
+                </div>
+                <div class="side-kv">
+                    <span>WebXR / AR</span>
+                    <b id="cap-xr">-</b>
+                </div>
+                <div class="side-kv">
+                    <span>Cihaz belleği</span>
+                    <b id="cap-memory">-</b>
+                </div>
+                <label class="field">
+                    <span>Render backend</span>
+                    <select id="renderer-mode" class="custom-select py-1 text-xs">
+                        <option value="webgl">WebGL2 (önerilen)</option>
+                        <option value="webgpu">WebGPU (deneysel)</option>
+                    </select>
+                </label>
+                <button id="btn-xr" type="button" class="tool-btn w-full">AR önizleme</button>
+                <p id="xr-hint" class="side-hint"></p>
+            </div>
+        </aside>
+
+        <div id="edit-toolbar" class="edit-toolbar hidden">
+            <button id="btn-undo" type="button" class="tool-btn" title="Geri al (Ctrl+Z)">↶</button>
+            <button id="btn-redo" type="button" class="tool-btn" title="Yinele (Ctrl+Shift+Z)">↷</button>
+            <button id="btn-prev-frame" type="button" class="tool-btn" title="Önceki kare (,)">⏮</button>
+            <button id="btn-next-frame" type="button" class="tool-btn" title="Sonraki kare (.)">⏭</button>
+            <button id="btn-side" type="button" class="tool-btn">Araçlar</button>
+        </div>
+
         <section id="drop-zone" class="drop-zone interactive" role="button" tabindex="0"
             aria-label="Model dosyası yüklemek için tıklayın veya sürükleyip bırakın">
             <div id="drop-content">

@@ -94,6 +94,12 @@ Tarayıcı tabanlı 3D model dönüştürücü ve görüntüleyici. FBX, GLB/GLT
 ### 🎨 Arayüz
 
 - Modern glassmorphism tasarım
+- **Araçlar paneli**: materyal editörü (renk, roughness/metalness, doku atama), sahne ayarları
+  (environment, ışık, pozlama, arka plan, ızgara), sistem bilgileri (backend, WebGPU, WebXR, bellek)
+- **Undo/redo** geçmişi (dönüşüm + materyal), kare atlama ve çerçeveleme kısayolları
+- **WebGL2 / WebGPU** backend seçimi (WebGPU yoksa otomatik WebGL2'ye düşer)
+- **WebXR / AR** önizleme (destekleyen cihazlarda)
+- **Salt görüntüleme modu**: `?view=1` ile paylaşılabilir, düzenleme araçları kapalı
 - Sürükle-bırak (tüm pencere), klavye ve dosya seçici desteği
 - Gerçek zamanlı 3D önizleme, OrbitControls, animasyon oynatma
 - Toast bildirimleri ve yükleme/ilerleme göstergeleri
@@ -119,16 +125,33 @@ npm run build     # dist/ klasörüne üretim derlemesi
 npm run preview   # Üretim derlemesini yerel sunucuda dene
 npm run icons     # PWA ikonlarını yeniden üret (sharp)
 npm test          # Vitest birim testleri
+npm run test:cli  # CLI testleri (node:test)
 npm run test:e2e  # Puppeteer uçtan uca test (önce build + preview gerekir)
+npm run glbify -- inspect model.glb
 ```
 
 Üretim çıktısı `dist/` klasörüne yazılır. GitHub Pages dağıtımı
-`.github/workflows/deploy.yml` ile `main` dalından otomatik yapılır: birim testi → uçtan uca test →
-build → dağıtım.
+`.github/workflows/deploy.yml` ile `main` dalından otomatik yapılır: birim testi → CLI testi →
+uçtan uca test → build → dağıtım.
 
 E2E testleri `npm run build && npm run preview` ile servis edilen yapıyı kullanır; farklı bir adres
 için `GLBY_BASE_URL` verilebilir. İlk çalıştırmada Chrome indirilmesi gerekebilir:
 `npx puppeteer browsers install chrome`.
+
+## 🖥️ Komut Satırı Aracı (`@glbify/cli`)
+
+`packages/cli` paketi tarayıcısız çalışır; three.js + glTF-Transform tabanlıdır.
+
+```bash
+npm run glbify -- inspect model.glb
+npm run glbify -- optimize model.glb model_opt.glb --simplify 0.5 --draco balanced
+npm run glbify -- optimize model.glb model_ktx2.glb --ktx2 --uastc
+npm run glbify -- convert model.stl model.glb
+npm run glbify -- convert model.glb model.obj
+```
+
+Seçenekler: `--simplify <0-1>`, `--draco <max|balanced|high>`, `--meshopt`, `--ktx2`, `--uastc`,
+`--no-weld`. `convert` dokuları OBJ/STL'ye gömmez ve bunu uyarı olarak bildirir.
 
 ## 📦 Proje Yapısı
 
@@ -152,7 +175,10 @@ Glbify/
 │   ├── config.js             # Sınırlar, DRACO seviyeleri, doku MIME, asset yolları
 │   ├── core/
 │   │   ├── viewer.js         # Sahne, kamera, ışık, render döngüsü, çerçeveleme
+│   │   ├── renderer.js       # WebGL2 / WebGPU seçimi ve yetenek tespiti
 │   │   ├── decoders.js       # DRACO / KTX2 / meshopt kayıtları
+│   │   ├── sceneSettings.js  # Environment, ışık, pozlama, arka plan uygulaması
+│   │   ├── history.js        # Undo/redo yığını
 │   │   ├── transformController.js # Gizmo + birim ölçeği birleştirme
 │   │   └── animator.js       # Klip yönetimi, play/pause, hız, döngü
 │   ├── io/
@@ -171,12 +197,15 @@ Glbify/
 │   ├── ui/
 │   │   ├── dropzone.js       # Çoklu dosya sürükle-bırak ve dosya seçici
 │   │   ├── exportPanel.js    # Ölçek, doku, DRACO ayarları
+│   │   ├── sidePanel.js      # Materyal / sahne / sistem panelleri
 │   │   ├── hud.js            # Başlık paneli, rozetler, ilerleme, animasyon paneli
 │   │   └── toast.js          # Bildirimler
 │   ├── pwa/serviceWorker.js  # SW kaydı ve çevrimdışı takibi
-│   ├── utils/                # Biçimlendirme, DOM, ayarlar, GPU temizliği
+│   ├── pwa/install.js        # Kurulum istemi, sürüm geçmişi, önbellek yönetimi
+│   ├── utils/                # Biçimlendirme, DOM, ayarlar, paylaşım, bellek, GPU temizliği
 │   ├── shims/node-builtins.js# glTF-Transform için node:* taklidi
 │   └── styles/main.css       # Tailwind katmanları + bileşen stilleri
+├── packages/cli/             # @glbify/cli (inspect / optimize / convert)
 ├── brain/                    # Proje dokümantasyonu
 └── docs/                     # Ek dokümantasyon
 ```

@@ -110,11 +110,7 @@ const obj = {
                     files.filter((file) => file !== mtlFile),
                 );
                 materials = library;
-                notes.push(
-                    mapped
-                        ? `MTL: ${mapped} doku eşlendi (${library.materialsArray.length} materyal)`
-                        : 'MTL: yalnızca renkler okundu (doku dosyası yok)',
-                );
+                notes.push(mapped ? `MTL: ${mapped} doku eşlendi` : 'MTL: yalnızca renkler okundu (doku dosyası yok)');
             } catch (error) {
                 notes.push(`MTL okunamadı: ${error.message}`);
             }

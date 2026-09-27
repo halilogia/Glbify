@@ -25,6 +25,7 @@ export default defineConfig({
     rollupOptions: {
       output: {
         manualChunks(id) {
+          if (/three[\\/]build[\\/]three\.(webgpu|tsl)/.test(id)) return 'three-webgpu';
           if (id.includes('node_modules/three')) return 'three';
           if (id.includes('node_modules/@gltf-transform')) return 'gltf-transform';
           return null;
@@ -72,6 +73,7 @@ export default defineConfig({
           '**/registerSW.js',
           '**/sw.js',
           '**/basis_encoder-*.wasm',
+          '**/three-webgpu-*.js',
         ],
         maximumFileSizeToCacheInBytes: 12 * 1024 * 1024,
         cleanupOutdatedCaches: true,

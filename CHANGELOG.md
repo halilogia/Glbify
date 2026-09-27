@@ -2,6 +2,77 @@
 
 Tüm önemli değişiklikler bu dosyada belgelenir.
 
+## [3.0.0] - 2026-09-27
+
+### ✨ Eklenenler
+
+**Yeni motor**
+
+- `core/renderer.js`: **WebGL2 / WebGPU** renderer seçimi. WebGPU build'i (`three/webgpu`)
+  tembel yüklenir ve adaptör yoksa otomatik olarak WebGL2'ye düşer.
+- Sistem panelinde backend bilgisi, WebGPU/WebXR/bellek yetenekleri ve deneysel backend seçimi
+- **WebXR / AR önizleme**: destekleyen cihazlarda `immersive-ar` oturumu, aksi halde gerekçeli
+  devre dışı buton
+- WebGPU chunk'ı (704 kB) precache dışında, ilk kullanımda yüklenir
+
+**Araçlar paneli (yeni)**
+
+- **Materyal editörü**: materyal listesi, renk, roughness/metalness kaydırıcıları ve doku atama
+  (diffuse, normal, roughness, metalness, emissive, AO)
+- **Sahne ayarları**: environment yoğunluğu, ana/dolgu ışığı, pozlama, arka plan rengi, ızgara
+- **Sistem paneli**: renderer backend, WebGPU, WebXR, cihaz belleği, backend seçimi, AR başlatma
+
+**Düzenleme geçmişi ve kısayollar**
+
+- **Undo/redo** (geçmiş yığını): gizmo dönüşümü, birim ölçeği ve materyal değişiklikleri
+- Araç çubuğu: geri al / yinele / önceki kare / sonraki kare / araçlar
+- Klavye: `Ctrl+Z`, `Ctrl+Shift+Z`, `,` / `.` kare atlama, `Esc` sıfırla
+
+**Paylaşım**
+
+- **Salt görüntüleme modu** (`?view=1`): dışa aktarma ve düzenleme araçları gizlenir
+- Ayar linki artık backend ve görünüm modu parametrelerini de taşır (`?renderer=webgpu&view=1`)
+
+**CLI paketi (`packages/cli`)**
+
+- `@glbify/cli`: `inspect` (istatistik), `optimize` (weld/simplify/DRACO/meshopt/KTX2/quantize),
+  `convert` (GLB↔STL/OBJ/PLY/GLTF)
+- Node shim'leri (`FileReader`, `createImageBitmap`) sayesinde three yazıcıları sunucuda çalışıyor
+- `node:test` ile 5 test, npm çalışma alanı (workspace) kurulumu
+
+### 🔧 Düzeltmeler
+
+- **Undo/redo bir kare gerideydi**: geri alma mevcut durumu yerine bir önceki durumu yüklüyordu
+- Materyal dokuları geri yüklenirken **sarmalayıcı nesne** texture yerine atanıyordu
+  (`'uvundefined'` shader hatası ve `Material.copy` çökmesi)
+- Export dosya tespiti (test) en yeni dosyayı seçiyor
+
+### 📦 Değişiklikler
+
+- Yeni modüller: `core/renderer.js`, `core/sceneSettings.js`, `core/history.js`,
+  `io/materialEditor.js`, `ui/sidePanel.js`
+- `Viewer` artık dışarıdan enjekte edilen renderer ile çalışıyor; `main.js` async `start()` ile
+  başlıyor (`globalThis.__glbifyReady`)
+- `vite.config.js`: `three/webgpu` ayrı chunk'a ayrılıyor (`three-webgpu`), precache'ten çıkarılıyor
+- NPM çalışma alanı: `packages/*`
+
+### ⏸️ Ertelenenler
+
+- **FBX ve USD yazma** — three.js'te FBX/USDC yazıcı yok, üçüncü parti WASM gerekiyor
+- **Bulut entegrasyonu** (Sketchfab / Drive / Dropbox) — OAuth ve sunucu tarafı gerektiriyor;
+  istemci tarafı ve çevrimdışı hedefiyle uyumsuz
+- **GPU tabanlı decimation**, **Electron/Tauri paketi**, **OffscreenCanvas ile worker'da doku çözme**
+- **i18n arayüzü (TR/EN)** — altyapı yerine statik metin geçişi sonraki sürüme bırakıldı
+
+### 🧪 Doğrulama
+
+- Vitest: 49/49 birim testi (geçmiş, sahne ayarları, materyal editörü dahil)
+- CLI: 5/5 `node:test`
+- Puppeteer e2e: üretim modunda 34/34 — materyal paneli, materyal düzenleme, undo/redo, sahne
+  ayarları, sistem paneli, kare atlama ve salt görüntüleme modu dahil
+- WebGPU notu: headless ortamda WebGPU adaptörü bulunmadığı için **fallback yolu** doğrulandı;
+  gerçek WebGPU adaptörüyle performans ölçümü yapılmadı
+
 ## [2.2.0] - 2026-09-27
 
 ### ✨ Eklenenler

@@ -104,21 +104,40 @@ flowchart TB
 - `manualChunks` splits three.js and glTF-Transform so the app shell stays small.
 - Workbox precache limit is raised to 12 MB to cover the WASM decoders.
 
-## 🧪 8. Verification Strategy
+## 🏎 8. Renderer Abstraction
+
+`src/core/renderer.js` picks the graphics backend and reports capabilities:
+
+- **WebGL2** (default): `WebGLRenderer` from `three`, statically chunked.
+- **WebGPU** (opt-in): `WebGPURenderer` from `three/webgpu`, loaded with a dynamic import into its
+  own chunk. If the adapter is missing or init fails, the factory falls back to WebGL2 and reports
+  the reason. The rest of the app keeps using the regular three build — both builds interoperate
+  because the renderer consumes the scene graph through duck-typed APIs.
+- `PMREMGenerator` is taken from the matching build for the environment prefilter.
+- `detectCapabilities()` reports WebGPU adapter availability, WebXR `immersive-ar` support and
+  `navigator.deviceMemory` for the system panel.
+
+The WebGPU chunk and the Basis encoder WASM are excluded from the Workbox precache: both are
+experimental/on-demand and are cached at runtime instead.
+
+## 🧪 9. Verification Strategy
 
 - Build gate: `npm run build` must complete without warnings; `dist/sw.js` and
   `dist/manifest.webmanifest` must exist.
 - `npm test` — Vitest unit tests over Node-importable modules (formatting, statistics, animator,
-  materials, importer registry, estimates, share links). No DOM required.
+  materials, importer registry, estimates, share links, history, scene settings, material editor).
+  No DOM required.
+- `npm run test:cli` — `node:test` suite for `@glbify/cli` (inspect, DRACO, meshopt, convert).
 - `npm run test:e2e` — Puppeteer harness over `npm run preview`; `GLBY_BASE_URL` selects the address.
   Covers loaders, worker parsing, all four exporters, DRACO/Meshopt/KTX2 verification inside the
-  produced GLB, animation transport, gizmo, unit scaling, share link, memory guard, offline reload
+  produced GLB, animation transport, gizmo, unit scaling, material editing, undo/redo, scene
+  settings, system panel, frame stepping, view-only mode, share link, memory guard, offline reload
   and console cleanliness. Dev-mode runs skip the service worker and offline assertions.
 - Fixtures are committed under `tests/fixtures/`; the `.gitignore` model-extension rules are negated
   for that directory.
 - Manual checklist lives in `GEMINI.md`.
 
-## 🔁 9. Extending
+## 🔁 10. Extending
 
 | Goal | Where |
 | --- | --- |

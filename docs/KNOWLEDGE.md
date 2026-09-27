@@ -97,13 +97,28 @@ precache and cached on first use instead.
 - `src/config.js` must stay Node-importable (unit tests): asset URLs are resolved lazily through
   `assetUrl()` instead of touching `document.baseURI` at module scope.
 
+## 🏎 Renderer Sıralaması
+
+- `core/renderer.js` WebGL2'yi varsayılan yapar; WebGPU `three/webgpu`'dan **dinamik** import
+  edilir (ayrı chunk, precache dışında).
+- three'ın iki build'i (WebGL ve WebGPU) aynı uygulamada birlikte çalışabiliyor: renderer sahne
+  grafiğini özellik bazlı (duck typed) tüketiyor. Yine de `PMREMGenerator` her zaman renderer ile
+  **aynı build'den** alınmalı.
+- `WebGPURenderer.init()` adaptör bulunamazsa hata vermez; `backend.isWebGPUBackend` kontrolüyle
+  WebGL2'ye düşüp düşmediğimiz anlaşılır.
+- `setAnimationLoop`, `setSize`, `outputColorSpace`, `toneMapping`, `xr` her iki build'de de var.
+
 ## 🧪 Testing
 
 - `npm test` — Vitest, `tests/unit/**`, node environment (no DOM).
+- `npm run test:cli` — `node:test`, `packages/cli/test/**`.
 - `npm run test:e2e` — Puppeteer against `npm run preview`; `GLBY_BASE_URL` overrides the address.
   Dev-mode runs skip the service worker and offline assertions.
 - Fixtures live in `tests/fixtures/` and are committed; the `.gitignore` model extensions are
   negated for that directory.
+- `packages/cli` needs DOM shims (`FileReader`, `createImageBitmap`) because three's exporters assume
+  a browser; see `packages/cli/src/domShim.js`. `GLTFLoader`/`STLLoader` need a real `ArrayBuffer`
+  (not a `Uint8Array` view).
 
 ## ✏️ Model Transform Model
 

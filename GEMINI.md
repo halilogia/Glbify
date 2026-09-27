@@ -17,31 +17,36 @@ Glbify/
 │   ├── icons/                # PWA ikonları (192/512/maskable/apple-touch)
 │   └── favicon.png
 ├── src/
-│   ├── main.js               # Uygulama denetleyicisi (GlbifyApp)
+│   ├── main.js               # Uygulama denetleyicisi (GlbifyApp, async start())
 │   ├── config.js             # Limitler, DRACO seviyeleri, asset URL'leri (tembel çözülür)
 │   ├── core/
-│   │   ├── viewer.js         # Sahne, kamera, ışık, grid, render döngüsü
+│   │   ├── viewer.js         # Sahne, kamera, ışık, grid, render döngüsü, XR
+│   │   ├── renderer.js       # WebGL2 / WebGPU seçimi, yetenek tespiti
 │   │   ├── decoders.js       # DRACO / KTX2 / meshopt kayıtları
+│   │   ├── sceneSettings.js  # Environment, ışık, pozlama, arka plan
+│   │   ├── history.js        # Undo/redo yığını
 │   │   ├── transformController.js # TransformControls + proxy + birim ölçeği
 │   │   └── animator.js       # Klip yönetimi ve transport kontrolleri
 │   ├── io/
 │   │   ├── importers.js      # FBX, GLTF, OBJ(+MTL), STL, PLY, 3MF, USD
 │   │   ├── exporters.js      # GLB, USDZ, STL, OBJ
-│   │   ├── gltfPostprocess.js# weld/dedup/prune, simplify, DRACO/Meshopt, KTX2, doku
+│   │   ├── gltfPostprocess.js# weld/dedup/prune, simplify, DRACO|Meshopt, KTX2, doku
 │   │   ├── workerParser.js   # Worker istemcisi + main thread geri düşüşü
 │   │   ├── parseWorker.js    # Worker gövdesi
 │   │   ├── estimate.js       # Çıktı boyutu tahmini
+│   │   ├── materialEditor.js # Materyal listeleme/yama/durum
 │   │   ├── textureOps.js     # Canvas doku kodlama/işleme
 │   │   ├── usdz.js           # USDZ paket doğrulaması
 │   │   ├── materials.js      # Phong → Standard, renk uzayı denetimi, MTL uygulama
 │   │   ├── modelStats.js     # Mesh / vertex / üçgen istatistikleri
 │   │   ├── fileReader.js     # Limit/boş dosya kontrollü, iptal edilebilir okuma
 │   │   └── download.js       # Blob indirme
-│   ├── ui/                   # dropzone, exportPanel, hud, toast
+│   ├── ui/                   # dropzone, exportPanel, sidePanel, hud, toast
 │   ├── utils/                # format, store, share, dom, dispose, memory
 │   ├── pwa/                  # serviceWorker.js, install.js
 │   ├── shims/node-builtins.js# node:* taklidi (glTF-Transform)
 │   └── styles/main.css       # Tailwind v4 katmanları + bileşen CSS'i
+├── packages/cli/             # @glbify/cli: inspect / optimize / convert
 ├── tests/
 │   ├── unit/                 # Vitest birim testleri
 │   ├── e2e/app.spec.mjs      # Puppeteer uçtan uca test
@@ -49,7 +54,7 @@ Glbify/
 ├── vitest.config.js
 ├── docs/KNOWLEDGE.md         # Format kuralları, post-process, worker ve build notları
 ├── ARCHITECTURE.md           # Katman sınırları, boru hattı, doğrulama
-└── .github/workflows/        # test → e2e → build → Pages
+└── .github/workflows/        # test → cli → e2e → build → Pages
 ```
 
 ## 🔧 Teknoloji Stack
@@ -120,13 +125,19 @@ Glbify/
    yüksek başlık paneli altındaki düğmelerin tıklamalarını yutar.
 10. **Node uyumluluğu**: `src/config.js` ve `src/utils/**` birim testlerinde (Node, DOM yok)
     çalışmalı; `document`/`window` erişimini modül yüklenirken yapma.
-11. **three.js r186**: `USDLoader` (`USDZLoader` deprecated), `OBJLoader.setMaterials()`,
+11. **Renderer**: `Viewer` renderer'ı dışarıdan alır (`core/renderer.js`). WebGPU build'i
+    (`three/webgpu`) ayrı chunk'ta ve precache dışında; adaptör yoksa WebGL2'ye düşer.
+12. **Undo/redo**: geçmiş yığını **anlık görüntü** tutar; `undo()` bir kare geri yükler.
+    Materyal doku geri yüklemesinde `textureLookup` **uuid → texture** eşlemesi olmalı (sarmalayıcı
+    değil, aksi halde shader hatası verir).
+13. **three.js r186**: `USDLoader` (`USDZLoader` deprecated), `OBJLoader.setMaterials()`,
     `TransformControls.getHelper()` ve paketlenmiş decoder URL'leri kullanılır.
 
 ## 🧪 Test Etme
 
 ```bash
 npm test          # Vitest birim testleri
+npm run test:cli  # CLI testleri (node:test)
 npm run build     # üretim derlemesi (dist/)
 npm run preview   # üretim çıktısını sun
 npm run test:e2e  # Puppeteer uçtan uca test (GLBY_BASE_URL ile adres değiştirilebilir)
@@ -146,12 +157,16 @@ Manuel kontrol listesi:
 10. "Diffuse'dan normal üret" seçeneği `normalTexture` üretiyor
 11. Boyut tahmini seçenek değişince güncelleniyor
 12. Gizmo modları çalışıyor; "Sıfırla" ve "Çerçevele" beklenen sonucu veriyor
-13. Animasyonlu modelde klip/timeline/hız/döngü kontrolleri çalışıyor
-14. USDZ geçerli ZIP; doku ve animasyon karesi bildirimi geliyor
-15. Büyük dosya bellek korumasıyla reddediliyor, İptal butonu çalışıyor
-16. Ayar linki kopyalanıyor ve `?scale=100` gibi parametreler uygulanıyor
-17. Service worker kurulduktan sonra sayfa çevrimdışı yeniden yükleniyor
-18. Konsolda hata yok
+13. Animasyonlu modelde klip/timeline/hız/döngü kontrolleri ve kare atlama çalışıyor
+14. **Araçlar paneli**: materyal listesi, renk/roughness/metalness değişimi, doku atama
+15. **Undo/redo** düğmeleri durumu doğru yansıtıyor ve geri/yinele çalışıyor
+16. **Sahne ayarları**: ışık, pozlama, arka plan ve ızgara değişiklikleri sahnede görünüyor
+17. **Sistem paneli**: backend, WebGPU, WebXR ve bellek bilgisi dolu
+18. USDZ geçerli ZIP; doku ve animasyon karesi bildirimi geliyor
+19. Büyük dosya bellek korumasıyla reddediliyor, İptal butonu çalışıyor
+20. Ayar linki kopyalanıyor; `?view=1` salt görüntüleme modunu açıyor
+21. Service worker kurulduktan sonra sayfa çevrimdışı yeniden yükleniyor
+22. Konsolda hata yok
 
 ## 📝 Commit Mesaj Formatı
 

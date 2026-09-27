@@ -10,10 +10,12 @@ const ALLOWED = {
     weld: 'weld',
     ktx2: 'ktx2',
     limit: 'maxFileMB',
-    birlestir: 'textureFormat',
+    renderer: 'rendererMode',
+    view: 'view',
+    panel: 'sidePanelOpen',
 };
 
-const BOOLEANS = new Set(['draco_acik', 'meshopt', 'weld', 'ktx2']);
+const BOOLEANS = new Set(['draco_acik', 'meshopt', 'weld', 'ktx2', 'view', 'panel']);
 
 export function readSettingsFromUrl(search = window.location.search) {
     const params = new URLSearchParams(search);

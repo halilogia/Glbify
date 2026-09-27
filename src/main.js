@@ -1,6 +1,9 @@
 import './styles/main.css';
 import { Animator } from './core/animator.js';
 import { createDecoders } from './core/decoders.js';
+import { History } from './core/history.js';
+import { createRenderer, detectCapabilities } from './core/renderer.js';
+import { applySceneSettings, SCENE_DEFAULTS } from './core/sceneSettings.js';
 import { TransformController } from './core/transformController.js';
 import { Viewer } from './core/viewer.js';
 import { APP_VERSION, LIMITS, MB } from './config.js';
@@ -9,6 +12,14 @@ import { exporters } from './io/exporters.js';
 import { EmptyFileError, FileLimitError, readFile } from './io/fileReader.js';
 import { ACCEPTED_EXTENSIONS, getImporter } from './io/importers.js';
 import { applyMtlLibrary, auditColorSpaces, prepareModel } from './io/materials.js';
+import {
+    applyMaterialPatch,
+    captureMaterialState,
+    collectTextures,
+    describeTexture,
+    listMaterials,
+    restoreMaterialState,
+} from './io/materialEditor.js';
 import { collectTextureSizes, estimateOutputBytes, formatEstimate } from './io/estimate.js';
 import { assessFileSize } from './utils/memory.js';
 import { isWorkerParseSupported } from './io/workerParser.js';
@@ -25,13 +36,17 @@ import {
 import { createDropZone } from './ui/dropzone.js';
 import { createExportPanel } from './ui/exportPanel.js';
 import { createHud } from './ui/hud.js';
+import { createSidePanel } from './ui/sidePanel.js';
 import { notify, toast } from './ui/toast.js';
-import { $, nextFrame, setText } from './utils/dom.js';
+import { $, nextFrame, setDisabled, setText, toggleClass } from './utils/dom.js';
 import { extensionOf, formatBytes, sanitizeBaseName } from './utils/format.js';
 import { getSettings, setSettings } from './utils/store.js';
 import { buildShareUrl, readSettingsFromUrl } from './utils/share.js';
 
-setSettings(readSettingsFromUrl());
+const urlSettings = readSettingsFromUrl();
+const viewOnly = urlSettings.view === '1' || new URLSearchParams(location.search).get('view') === '1';
+delete urlSettings.view;
+setSettings(urlSettings);
 
 const elements = {
     container: $('#canvas-container'),
@@ -70,6 +85,41 @@ const elements = {
     installButton: $('#btn-install'),
     shareButton: $('#btn-share'),
     cacheButton: $('#btn-cache'),
+    sidePanel: $('#side-panel'),
+    materialList: $('#material-list'),
+    materialsEmpty: $('#materials-empty'),
+    materialTabs: [...document.querySelectorAll('.side-tab')],
+    panels: {
+        materials: $('#panel-materials'),
+        scene: $('#panel-scene'),
+        system: $('#panel-system'),
+    },
+    rendererMode: $('#renderer-mode'),
+    rendererBackend: $('#renderer-backend'),
+    capWebgpu: $('#cap-webgpu'),
+    capXr: $('#cap-xr'),
+    capMemory: $('#cap-memory'),
+    xrButton: $('#btn-xr'),
+    xrHint: $('#xr-hint'),
+    editToolbar: $('#edit-toolbar'),
+    undoButton: $('#btn-undo'),
+    redoButton: $('#btn-redo'),
+    prevFrameButton: $('#btn-prev-frame'),
+    nextFrameButton: $('#btn-next-frame'),
+    sideButton: $('#btn-side'),
+    sceneInputs: {
+        envIntensity: $('#env-intensity'),
+        keyIntensity: $('#key-intensity'),
+        fillIntensity: $('#fill-intensity'),
+        exposure: $('#exposure'),
+        background: $('#background'),
+    },
+    sceneValues: {
+        envIntensity: $('#env-value'),
+        keyIntensity: $('#key-value'),
+        fillIntensity: $('#fill-value'),
+        exposure: $('#exposure-value'),
+    },
     resetButton: $('#btn-reset'),
     frameButton: $('#btn-frame'),
     transformReset: $('#btn-transform-reset'),
@@ -111,13 +161,35 @@ class GlbifyApp {
         this.busy = false;
         this.animator = null;
         this.audit = null;
-        this.mtlLibrary = null;
         this.abortController = null;
+        this.sceneSettings = { ...SCENE_DEFAULTS };
+        this.capabilities = { webgpu: false, webgl2: true, xr: false, webgpuReason: 'bilinmiyor' };
+        this.materials = [];
+        this.textureLookup = new Map();
+        this.viewOnly = viewOnly;
+
+        this.hud = createHud(elements);
+        this.history = new History({
+            capture: () => this.captureState(),
+            restore: (state) => this.restoreState(state),
+            onChange: (info) => this.renderHistory(info),
+        });
+    }
+
+    async start() {
+        const graphics = await createRenderer({ mode: this.settings.rendererMode ?? 'webgl' });
+        this.graphics = graphics;
 
         this.viewer = new Viewer(elements.container, {
+            renderer: graphics.renderer,
+            backend: graphics.backend,
+            PMREMGenerator: graphics.PMREMGenerator,
             onContextLost: () => notify.error('Grafik bağlamı kayboldu. Sayfayı yenileyin.'),
         });
+
+        this.capabilities = await detectCapabilities();
         this.decoders = createDecoders(this.viewer.renderer);
+
         this.transform = new TransformController({
             camera: this.viewer.camera,
             domElement: this.viewer.renderer.domElement,
@@ -126,7 +198,6 @@ class GlbifyApp {
             onChange: (snapshot) => this.renderTransformReadout(snapshot),
         });
 
-        this.hud = createHud(elements);
         this.dropZone = createDropZone({
             dropZone: elements.dropZone,
             fileInput: elements.fileInput,
@@ -134,6 +205,7 @@ class GlbifyApp {
             onFiles: (files) => this.handleFiles(files),
             onReject: (message) => notify.warning(message),
         });
+
         this.exportPanel = createExportPanel({
             elements,
             settings: this.settings,
@@ -141,12 +213,25 @@ class GlbifyApp {
             onUnitScaleChange: (scale) => {
                 this.transform.setUnitScale(scale);
                 this.viewer.fitCamera(this.model ?? this.transform.proxy);
+                this.history.commit();
             },
             onOptionsChange: () => this.refreshEstimate(),
         });
 
+        this.sidePanel = createSidePanel({
+            elements,
+            onPatchMaterial: (material, patch, commit) => this.patchMaterial(material, patch, commit),
+            onSceneChange: (key, value) => this.changeSceneSetting(key, value),
+            onRendererChange: (mode) => this.changeRenderer(mode),
+            onXR: () => this.startXR(),
+        });
+        this.sidePanel.setCapabilities({ backend: graphics.backend, capabilities: this.capabilities });
+
         this.bindTransformTools();
         this.bindAnimationTools();
+        this.bindEditTools();
+        this.applyViewOnly();
+        this.applySceneSettings();
 
         elements.resetButton.addEventListener('click', () => this.reset());
         elements.container.addEventListener('dblclick', () => this.viewer.resetView());
@@ -163,6 +248,138 @@ class GlbifyApp {
         watchConnection({ onChange: (offline) => this.hud.setOffline(offline) });
         this.setupServiceWorker();
         this.reset();
+
+        if (this.settings.sidePanelOpen) toggleClass(elements.sidePanel, 'hidden', false);
+    }
+
+    bindEditTools() {
+        elements.undoButton.addEventListener('click', () => this.history.undo());
+        elements.redoButton.addEventListener('click', () => this.history.redo());
+        elements.prevFrameButton.addEventListener('click', () => this.stepFrame(-1));
+        elements.nextFrameButton.addEventListener('click', () => this.stepFrame(1));
+        elements.sideButton.addEventListener('click', () => {
+            const hidden = elements.sidePanel.classList.toggle('hidden');
+            setSettings({ sidePanelOpen: !hidden });
+        });
+
+        window.addEventListener('keydown', (event) => {
+            if (event.target instanceof HTMLInputElement || event.target instanceof HTMLSelectElement) return;
+            const meta = event.ctrlKey || event.metaKey;
+            if (meta && event.key.toLowerCase() === 'z') {
+                event.preventDefault();
+                if (event.shiftKey) this.history.redo();
+                else this.history.undo();
+                return;
+            }
+            if (event.key === ',') this.stepFrame(-1);
+            if (event.key === '.') this.stepFrame(1);
+        });
+    }
+
+    applyViewOnly() {
+        if (!this.viewOnly) return;
+        toggleClass(elements.controls, 'hidden', true);
+        toggleClass(elements.editToolbar, 'hidden', true);
+        toggleClass(elements.sidePanel, 'hidden', true);
+        elements.shareButton.parentElement.classList.add('hidden');
+        document.documentElement.dataset.mode = 'view';
+    }
+
+    sceneTarget() {
+        return {
+            scene: this.viewer.scene,
+            renderer: this.viewer.renderer,
+            lights: this.viewer.lights,
+            grid: this.viewer.grid,
+            environment: this.viewer.environment,
+        };
+    }
+
+    applySceneSettings() {
+        applySceneSettings(this.sceneSettings, this.sceneTarget());
+        this.viewer.setGridEnabled(this.sceneSettings.gridVisible);
+    }
+
+    changeSceneSetting(key, value) {
+        if (key === 'background') this.sceneSettings.background = elements.sceneInputs.background.value;
+        else this.sceneSettings[key] = value;
+
+        if (elements.sceneValues[key]) {
+            setText(elements.sceneValues[key], Number(this.sceneSettings[key]).toFixed(2));
+        }
+        this.applySceneSettings();
+    }
+
+    changeRenderer(mode) {
+        setSettings({ rendererMode: mode });
+        const url = new URL(location.href);
+        url.searchParams.set('renderer', mode);
+        location.href = url.toString();
+    }
+
+    async startXR() {
+        try {
+            await this.viewer.startXR('immersive-ar');
+            notify.info('AR oturumu başlatılıyor...');
+        } catch (error) {
+            notify.warning(error.message);
+        }
+    }
+
+    stepFrame(direction) {
+        if (!this.animator) return;
+        this.animator.setTime(this.animator.time + direction / 30);
+    }
+
+    captureState() {
+        return {
+            proxy: {
+                position: this.transform.proxy.position.toArray(),
+                rotation: [this.transform.proxy.rotation.x, this.transform.proxy.rotation.y, this.transform.proxy.rotation.z],
+                scale: this.transform.proxy.scale.toArray(),
+                unitScale: this.transform.unitScale,
+            },
+            materials: this.materials.map((entry) => captureMaterialState(entry.material)),
+        };
+    }
+
+    restoreState(state) {
+        if (!state) return;
+        const { proxy, materials } = state;
+
+        this.transform.proxy.position.fromArray(proxy.position);
+        this.transform.proxy.rotation.set(...proxy.rotation);
+        this.transform.proxy.scale.fromArray(proxy.scale);
+        this.transform.unitScale = proxy.unitScale;
+        this.transform.apply();
+
+        materials?.forEach((materialState, index) => {
+            const entry = this.materials[index];
+            if (entry) restoreMaterialState(entry.material, materialState, this.textureLookup);
+        });
+
+        this.sidePanel.setMaterials(this.materials);
+        this.refreshEstimate();
+    }
+
+    renderHistory(info) {
+        setDisabled(elements.undoButton, !info.canUndo);
+        setDisabled(elements.redoButton, !info.canRedo);
+    }
+
+    patchMaterial(material, patch, commit) {
+        applyMaterialPatch(material, patch);
+        if (commit) {
+            this.history.commit();
+            this.refreshEstimate();
+        }
+    }
+
+    refreshMaterials() {
+        this.materials = listMaterials(this.model);
+        this.textureLookup = collectTextures(this.model);
+        this.sidePanel.setMaterials(this.materials);
+        this.sidePanel.setTextureOptions([...this.textureLookup.values()].map(describeTexture));
     }
 
     setupServiceWorker() {
@@ -389,6 +606,10 @@ class GlbifyApp {
             this.hud.showDropZone(false);
             this.hud.showControls(true);
             this.exportPanel.setEnabled(true);
+            this.refreshMaterials();
+            this.history.reset(this.captureState());
+            this.renderHistory(this.history.info());
+            toggleClass(elements.editToolbar, 'hidden', this.viewOnly);
             this.refreshEstimate();
 
             this.warnAboutModel(primary, stats, extension);
@@ -576,3 +797,4 @@ function modeLabel(mode) {
 }
 
 globalThis.__glbify = new GlbifyApp();
+globalThis.__glbifyReady = globalThis.__glbify.start();

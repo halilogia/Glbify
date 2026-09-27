@@ -3,21 +3,20 @@
 Glbify için bundan sonra izlenecek yol. Bu dosya **yalnızca yapılacakları** içerir; tamamlanan
 işler [CHANGELOG.md](CHANGELOG.md) dosyasında kayıtlıdır.
 
-> Sürüm: v2.2.0 sonrası plan · Güncelleme: 2026-09-27
+> Sürüm: v3.0.0 sonrası plan · Güncelleme: 2026-09-27
 
-## ✅ Tamamlanan: v2.2 — Performans ve Kalite
+## ✅ Tamamlanan: v3.0 — Profesyonel Araç
 
-Bölümün tamamı tamamlandı (bkz. CHANGELOG 2.2.0): mesh sadeleştirme, weld/dedup/prune,
-`EXT_meshopt_compression`, KTX2/Basis, boyut tahmini, Web Worker ayrıştırma, iptal butonu, bellek
-koruması, Vitest + Puppeteer testleri ve CI, kurulum istemi, sürüm geçmişi, önbellek yönetimi ve
-paylaşılabilir ayar linkleri.
+WebGL2/WebGPU renderer seçimi (otomatik fallback), WebXR/AR önizleme, materyal editörü, sahne
+ayarları, undo/redo geçmişi, kare atlama kısayolları, salt görüntüleme modu ve `@glbify/cli`
+paketi tamamlandı (bkz. CHANGELOG 3.0.0).
 
-Ertelenenler: doku atlaslama (UV packer yok), worker kapsamının FBX/GLTF/USD'e genişletilmesi
-(worker'da `Image` erişimi yok).
+Ertelenenler: FBX/USD yazma (üçüncü parti WASM gerekli), bulut entegrasyonları (OAuth + sunucu),
+GPU decimation, Electron/Tauri, worker'da doku çözme, TR/EN i18n arayüzü.
 
 ---
 
-## 🎯 v2.3 — Genişletilmiş Dönüştürme
+## 🎯 v3.1 — Dönüştürme Derinliği (v2.3'ten taşınan işler)
 
 ### Toplu işleme
 
@@ -28,64 +27,36 @@ Ertelenenler: doku atlaslama (UV packer yok), worker kapsamının FBX/GLTF/USD'e
 
 ### Doku ve materyal
 
-- [ ] Doku atlaslama (UV packer araştırması) — v2.2'den ertelendi
+- [ ] Doku atlaslama (UV packer araştırması)
 - [ ] Doku atlası çözünürlük ve padding ayarları
 - [ ] Normal map yönü otomatik tespiti (dosya adı + normalizasyon analizi)
 - [ ] KTX2 kalite seviyesi seçimi (ETC1S/UASTC, etiket kalitesi)
+- [ ] Materyal editörü: doku dosyası içe aktarma (drop → slot'a ata)
 
 ### Analiz
 
 - [ ] Model istatistik panelinin genişletilmesi (malzeme sayısı, doku sayısı, LOD sayısı)
 - [ ] Geometri sağlık kontrolü (degenerate triangle, eksik UV, fazla draw call)
 - [ ] Otomatik ölçek tahmini (birim algılama: mm/cm/m)
+- [ ] WebGPU performans karşılaştırması (ölçüm panosu)
 
 ---
 
-## 🔮 v3.0 — Profesyonel Araç
+## 🔮 v3.2 — Platform
 
-### Yeni motor
-
-- [ ] WebGPU renderer geçişi (`WebGPURenderer`, KTX2 `detectSupportAsync`)
-- [ ] WebGL geri düşüşü ve otomatik seçim
-- [ ] WebXR / AR önizleme (USDZ + GLB)
-
-### Düzenleme ve düzen
-
-- [ ] Materyal editörü (PBR parametreleri, doku atama)
-- [ ] Işık ve environment ayarları, HDR environment yükleme
-- [ ] Model düzenleme geçmişi (undo/redo)
-- [ ] Kamera ve animasyon kısayolları (kare atlama, döngü bölgesi)
-
-### Toplu işleme
-
-- [ ] Komut satırı arayüzü: `@glbify/cli` (Node + headless three.js)
-
-### Format yazma
-
-- [ ] FBX yazma — tarayıcıda FBX yazıcı yok, üçüncü parti WASM kütüphane araştırması
-- [ ] USD (USDA/USDC) yazma
-
-### Entegrasyon
-
-- [ ] Sketchfab / Google Drive / Dropbox bağlantısı
-- [ ] Paylaşılabilir link ile model önizleme (salt görüntüleme modu)
-- [ ] Çevrimiçi çok dilli arayüz (TR/EN), i18n altyapısı
-
----
-
-## 💡 Değerlendirme Aşamasında
-
+- [ ] TR/EN i18n arayüzü (statik metin geçişi + `data-i18n`)
+- [ ] Web Worker'da doku çözme (OffscreenCanvas + worker `ImageLoader`)
 - [ ] GPU tabanlı decimation (compute shader)
 - [ ] Kompresyon profili paylaşımı (uygulama içi link)
 - [ ] Vite dışı dağıtım seçenekleri (Electron / Tauri masaüstü paketi)
-- [ ] Web Worker'da doku çözme (OffscreenCanvas + worker `ImageLoader`)
+- [ ] Sunucu tarafı gerektiren seçenekler (Sketchfab / Drive / Dropbox, OAuth) — kapsam
+  kararı gerekiyor
 
 ---
 
 ## 📌 Öncelik Notları
 
-1. **Web Worker** kapsamı şu an STL/PLY/OBJ ile sınırlı; FBX/GLTF/USD için worker'da doku çözme
-   gerekiyor (OffscreenCanvas).
-2. **USDZ Quick Look** cihaz üzerindeki (iOS/macOS) son kontrol adımı elle yapılmalı; paketin
-   yapısal doğrulaması otomatik.
-3. Her sürüm `CHANGELOG.md` ve `README.md` güncellenerek taglenir.
+1. **Web Worker** kapsamı şu an STL/PLY/OBJ ile sınırlı; FBX/GLTF/USD için worker'da doku çözme gerekiyor.
+2. **USDZ Quick Look** cihaz üzerindeki (iOS/macOS) son kontrol adımı elle yapılmalı; paketin yapısal doğrulaması otomatik.
+3. **WebGPU** bu ortamda adaptör olmadığı için yalnızca fallback doğrulandı; gerçek cihazda ölçüm yapılmalı.
+4. Her sürüm `CHANGELOG.md` ve `README.md` güncellenerek taglenir.
