@@ -76,6 +76,42 @@
                         </div>
                     </dl>
                     <p id="debug-info" class="text-[10px] text-gray-500 mt-3 font-mono"></p>
+                    <button id="btn-audit" type="button" class="audit-chip hidden mt-2"></button>
+                </div>
+
+                <div id="animation-panel" class="hidden mt-4 pt-4 border-t border-gray-800">
+                    <div class="flex items-center gap-2">
+                        <select id="clip-selector" class="custom-select flex-1 min-w-0 py-1 text-xs"></select>
+                        <span id="clip-count" class="text-[10px] text-gray-500 font-mono shrink-0"></span>
+                    </div>
+
+                    <div class="flex items-center gap-2 mt-3">
+                        <button id="btn-anim-play" type="button" class="transport-btn" title="Oynat / Duraklat">
+                            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"></path></svg>
+                        </button>
+                        <button id="btn-anim-stop" type="button" class="transport-btn" title="Durdur">
+                            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 6h12v12H6z"></path></svg>
+                        </button>
+                        <input type="range" id="anim-timeline" class="timeline" min="0" max="1" step="0.001" value="0">
+                        <span id="anim-time" class="text-[10px] text-gray-400 font-mono w-16 text-right shrink-0">0.00s</span>
+                    </div>
+
+                    <div class="flex items-center gap-3 mt-2">
+                        <label class="flex items-center gap-2 text-[11px] text-gray-400">
+                            Hız
+                            <select id="anim-speed" class="custom-select py-0.5 px-1 text-[11px]">
+                                <option value="0.25">0.25x</option>
+                                <option value="0.5">0.5x</option>
+                                <option value="1" selected>1x</option>
+                                <option value="1.5">1.5x</option>
+                                <option value="2">2x</option>
+                            </select>
+                        </label>
+                        <label class="flex items-center gap-2 text-[11px] text-gray-400 cursor-pointer">
+                            <input type="checkbox" id="anim-loop" class="toggle" checked>
+                            <span>Döngü</span>
+                        </label>
+                    </div>
                 </div>
             </div>
 
@@ -105,8 +141,8 @@
                 <h2 class="text-3xl font-bold mb-2 text-white">Modelini Bırak</h2>
                 <p class="text-sm text-gray-400 mb-6 font-light">Glbify senin için dönüştürsün ve göstersin.</p>
 
-                <input type="file" id="file-input" class="hidden"
-                    accept=".fbx,.glb,.gltf,.obj,.stl,.usdz,.usd,.usda,.usdc,model/gltf-binary,model/gltf+json,model/stl,model/obj,application/octet-stream">
+                <input type="file" id="file-input" class="hidden" multiple
+                    accept=".fbx,.glb,.gltf,.obj,.mtl,.stl,.ply,.3mf,.usdz,.usd,.usda,.usdc,.png,.jpg,.jpeg,.webp,.tga,.bmp,model/gltf-binary,model/gltf+json,model/stl,model/obj,application/octet-stream">
                 <button id="btn-browse" type="button"
                     class="btn-primary text-white px-8 py-4 rounded-xl font-bold text-lg w-full shadow-xl">Dosya Seç</button>
 
@@ -117,8 +153,11 @@
                         <span>GLTF</span><span class="text-gray-700">•</span>
                         <span>OBJ</span><span class="text-gray-700">•</span>
                         <span>STL</span><span class="text-gray-700">•</span>
+                        <span>PLY</span><span class="text-gray-700">•</span>
+                        <span>3MF</span><span class="text-gray-700">•</span>
                         <span>USDZ</span>
                     </div>
+                    <p class="text-[10px] text-gray-600">OBJ + MTL + doku dosyalarını birlikte bırakabilirsin.</p>
                     <label class="flex items-center justify-center gap-2 text-[11px] text-gray-500">
                         <span>Dosya limiti</span>
                         <select id="limit-select" class="custom-select py-1 text-[11px]">
@@ -144,48 +183,104 @@
         </section>
 
         <section id="controls"
-            class="p-4 sm:p-8 flex flex-col items-center justify-end interactive w-full bottom-0 absolute">
+            class="p-4 sm:p-8 flex flex-col items-center justify-end interactive w-full mt-auto">
             <div class="glass-panel p-4 flex flex-col gap-4 items-center mb-4 w-full max-w-3xl">
 
-                <div class="grid gap-3 w-full sm:grid-cols-2">
-                    <label class="field">
-                        <span>Hedef Yazılım / Birim</span>
-                        <select id="scale-selector" class="custom-select">
-                            <option value="1">Blender / Unity / Godot (Metre - 1x)</option>
-                            <option value="100">3ds Max / Unreal Engine (Santimetre - 100x)</option>
-                            <option value="0.01">Özel: Metre -> Küçük (0.01x)</option>
-                            <option value="0.0254">İnç -> Metre (0.0254x)</option>
-                        </select>
-                    </label>
+                <div class="flex flex-wrap items-center gap-3 w-full">
+                    <div class="seg" role="group" aria-label="Dönüştürme aracı">
+                        <button type="button" data-transform="translate" class="is-active">Hareket</button>
+                        <button type="button" data-transform="rotate">Döndür</button>
+                        <button type="button" data-transform="scale">Ölçek</button>
+                    </div>
 
-                    <label class="field">
-                        <span>Doku Çözünürlüğü</span>
-                        <select id="texture-selector" class="custom-select">
-                            <option value="0">Dokuları gömme (en küçük)</option>
-                            <option value="2048">2K (varsayılan)</option>
-                            <option value="4096" selected>4K (orijinal)</option>
-                        </select>
-                    </label>
+                    <div class="text-[10px] text-gray-500 font-mono" id="transform-readout">0, 0, 0</div>
+
+                    <div class="flex items-center gap-2 ml-auto">
+                        <button id="btn-frame" type="button" class="tool-btn">Çerçevele</button>
+                        <button id="btn-transform-reset" type="button" class="tool-btn">Sıfırla</button>
+                    </div>
                 </div>
 
-                <div class="flex flex-wrap items-center gap-3 w-full border-t border-gray-700/70 pt-4">
-                    <label class="flex items-center gap-2 text-sm text-gray-300 cursor-pointer">
-                        <input type="checkbox" id="draco-toggle" class="toggle" checked>
-                        <span>DRACO sıkıştırma</span>
-                    </label>
+                <details id="advanced-options" class="w-full">
+                    <summary class="options-summary">Gelişmiş ayarlar (birim, doku, DRACO)</summary>
 
-                    <label class="field w-auto" id="draco-level-field">
-                        <span>Kalite</span>
-                        <select id="draco-level" class="custom-select py-1 text-xs">
-                            <option value="high">Yüksek</option>
-                            <option value="balanced" selected>Dengeli</option>
-                            <option value="max">Maksimum sıkıştırma</option>
-                        </select>
-                    </label>
+                    <div class="flex flex-col gap-4 items-center w-full pt-4">
+                        <div class="grid gap-3 w-full sm:grid-cols-2">
+                            <label class="field">
+                                <span>Hedef Yazılım / Birim</span>
+                                <select id="scale-selector" class="custom-select">
+                                    <option value="1">Blender / Unity / Godot (Metre - 1x)</option>
+                                    <option value="100">3ds Max / Unreal Engine (Santimetre - 100x)</option>
+                                    <option value="0.01">Özel: Metre -> Küçük (0.01x)</option>
+                                    <option value="0.0254">İnç -> Metre (0.0254x)</option>
+                                </select>
+                            </label>
 
-                    <p class="w-full text-[11px] text-gray-500">DRACO yalnızca GLB çıktısında
-                        <code class="text-gray-400">KHR_draco_mesh_compression</code> uzantısı ile çalışır.</p>
-                </div>
+                            <label class="field">
+                                <span>Doku Çözünürlüğü</span>
+                                <select id="texture-selector" class="custom-select">
+                                    <option value="0">Dokuları gömme (en küçük)</option>
+                                    <option value="2048">2K (varsayılan)</option>
+                                    <option value="4096" selected>4K (orijinal)</option>
+                                </select>
+                            </label>
+                        </div>
+
+                        <div class="grid gap-3 w-full sm:grid-cols-2">
+                            <label class="field">
+                                <span>Doku Formatı</span>
+                                <select id="texture-format" class="custom-select">
+                                    <option value="original">Orijinal (PNG)</option>
+                                    <option value="png">PNG (kayıpsız)</option>
+                                    <option value="jpeg">JPEG (küçük)</option>
+                                    <option value="webp">WebP (dengeli)</option>
+                                </select>
+                            </label>
+
+                            <label class="field" id="quality-field">
+                                <span>Kalite: <span id="quality-value" class="text-green-400">0.92</span></span>
+                                <input type="range" id="texture-quality" class="timeline" min="0.4" max="1" step="0.02"
+                                    value="0.92">
+                            </label>
+                        </div>
+
+                        <div class="flex flex-wrap items-center gap-4 w-full">
+                            <label class="flex items-center gap-2 text-xs text-gray-300 cursor-pointer">
+                                <input type="checkbox" id="invert-normals" class="toggle">
+                                <span>Normal map yönünü ters çevir</span>
+                            </label>
+
+                            <label class="flex items-center gap-2 text-xs text-gray-300 cursor-pointer">
+                                <input type="checkbox" id="generate-normals" class="toggle">
+                                <span>Diffuse'dan normal haritası üret</span>
+                            </label>
+
+                            <label class="flex items-center gap-2 text-xs text-gray-300 cursor-pointer">
+                                <input type="checkbox" id="usdz-quicklook" class="toggle">
+                                <span>USDZ: Quick Look uyumlu (kare kare)</span>
+                            </label>
+                        </div>
+
+                        <div class="flex flex-wrap items-center gap-3 w-full border-t border-gray-700/70 pt-4">
+                            <label class="flex items-center gap-2 text-sm text-gray-300 cursor-pointer">
+                                <input type="checkbox" id="draco-toggle" class="toggle" checked>
+                                <span>DRACO sıkıştırma</span>
+                            </label>
+
+                            <label class="field w-auto" id="draco-level-field">
+                                <span>Kalite</span>
+                                <select id="draco-level" class="custom-select py-1 text-xs">
+                                    <option value="high">Yüksek</option>
+                                    <option value="balanced" selected>Dengeli</option>
+                                    <option value="max">Maksimum sıkıştırma</option>
+                                </select>
+                            </label>
+
+                            <p class="w-full text-[11px] text-gray-500">DRACO yalnızca GLB çıktısında
+                                <code class="text-gray-400">KHR_draco_mesh_compression</code> uzantısı ile çalışır.</p>
+                        </div>
+                    </div>
+                </details>
 
                 <div class="grid gap-2 w-full sm:grid-cols-2 lg:grid-cols-4">
                     <button id="btn-export-glb" type="button"

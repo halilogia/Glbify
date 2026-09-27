@@ -17,4 +17,9 @@ export const ASSETS = {
     dracoEncoderWasm: new URL('draco/draco_encoder.wasm', document.baseURI).href,
 };
 
+export const TEXTURE_MIME = {
+    jpeg: 'image/jpeg',
+    webp: 'image/webp',
+};
+
 export const TOAST_TIMEOUT = 6000;

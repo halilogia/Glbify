@@ -1,7 +1,11 @@
 import { ACCEPTED_EXTENSIONS } from '../io/importers.js';
 import { setHidden } from '../utils/dom.js';
 
-const ACCEPT = ACCEPTED_EXTENSIONS.map((extension) => `.${extension}`).join(',');
+const AUXILIARY_EXTENSIONS = ['mtl', 'png', 'jpg', 'jpeg', 'webp', 'tga', 'bmp', 'gif'];
+const MODEL_EXTENSIONS = ACCEPTED_EXTENSIONS.filter((extension) => !AUXILIARY_EXTENSIONS.includes(extension));
+const ACCEPT = [...new Set([...ACCEPTED_EXTENSIONS, ...AUXILIARY_EXTENSIONS])].map((ext) => `.${ext}`).join(',');
+
+const isModel = (file) => MODEL_EXTENSIONS.includes(file.name.split('.').pop()?.toLowerCase() ?? '');
 
 export function createDropZone({ dropZone, fileInput, browseButton, onFiles, onReject }) {
     fileInput.setAttribute('accept', ACCEPT);
@@ -26,10 +30,20 @@ export function createDropZone({ dropZone, fileInput, browseButton, onFiles, onR
         }
     });
 
+    const submit = (files) => {
+        const models = files.filter(isModel);
+        if (!models.length) {
+            onReject?.('Model dosyası bulunamadı. Desteklenenler: ' + ACCEPTED_EXTENSIONS.join(', '));
+            return;
+        }
+        if (models.length > 1) onReject?.('Aynı anda tek model işlenebilir. İlk dosya yükleniyor.');
+        onFiles([models[0], ...files.filter((file) => file !== models[0])]);
+    };
+
     fileInput.addEventListener('change', (event) => {
         const files = [...(event.target.files ?? [])];
         event.target.value = '';
-        if (files.length) onFiles(files);
+        if (files.length) submit(files);
     });
 
     window.addEventListener('dragenter', (event) => {
@@ -55,9 +69,7 @@ export function createDropZone({ dropZone, fileInput, browseButton, onFiles, onR
         depth = 0;
         deactivate();
         const files = [...(event.dataTransfer?.files ?? [])];
-        if (!files.length) return;
-        if (files.length > 1) onReject?.('Aynı anda yalnızca bir dosya işlenebilir. İlk dosya yükleniyor.');
-        onFiles([files[0]]);
+        if (files.length) submit(files);
     });
 
     return {

@@ -1,10 +1,17 @@
 import * as THREE from 'three';
 import { FBXLoader } from 'three/addons/loaders/FBXLoader.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { MTLLoader } from 'three/addons/loaders/MTLLoader.js';
 import { OBJLoader } from 'three/addons/loaders/OBJLoader.js';
+import { PLYLoader } from 'three/addons/loaders/PLYLoader.js';
 import { STLLoader } from 'three/addons/loaders/STLLoader.js';
+import { ThreeMFLoader } from 'three/addons/loaders/3MFLoader.js';
 import { USDLoader } from 'three/addons/loaders/USDLoader.js';
 import { decodeText } from './fileReader.js';
+import { blobToDataUrl } from './textureOps.js';
+
+const TEXTURE_DIRECTIVES =
+    /^\s*(map_Kd|map_Ka|map_Ks|map_Ke|map_Kn|map_ns|map_d|bump|disp|norm|refl|decal)\s+(\S+)/gim;
 
 function normalizeError(error) {
     if (error instanceof Error) return error;
@@ -21,6 +28,27 @@ function groupFromGeometry(geometry, name) {
     const mesh = new THREE.Mesh(geometry, material);
     mesh.name = name;
     return mesh;
+}
+
+async function buildMtlLibrary(source, siblingFiles) {
+    const replacements = new Map();
+
+    for (const match of source.matchAll(TEXTURE_DIRECTIVES)) {
+        const reference = match[2].replace(/^["']|["']$/g, '');
+        const base = reference.split(/[\\/]/).pop().toLowerCase();
+        const file = siblingFiles.find((candidate) => candidate.name.toLowerCase() === base);
+        if (!file || replacements.has(reference)) continue;
+        replacements.set(reference, await blobToDataUrl(file));
+    }
+
+    const patched = replacements.size
+        ? source.replace(TEXTURE_DIRECTIVES, (line, directive, reference) => {
+            const replacement = replacements.get(reference);
+            return replacement ? `${directive} ${replacement}` : line;
+        })
+        : source;
+
+    return { library: new MTLLoader().parse(patched, ''), mapped: replacements.size };
 }
 
 const fbx = {
@@ -54,8 +82,44 @@ const obj = {
     id: 'obj',
     label: 'OBJ',
     extensions: ['obj'],
-    async parse(buffer) {
-        return { object: new OBJLoader().parse(decodeText(buffer)), animations: [] };
+    async parse(buffer, { files = [] }) {
+        const mtlFile = files.find((file) => /\.mtl$/i.test(file.name));
+        let materials = null;
+        let notes = [];
+
+        if (mtlFile) {
+            try {
+                const { library, mapped } = await buildMtlLibrary(
+                    await mtlFile.text(),
+                    files.filter((file) => file !== mtlFile),
+                );
+                materials = library;
+                notes.push(
+                    mapped
+                        ? `MTL: ${mapped} doku eşlendi (${library.materialsArray.length} materyal)`
+                        : 'MTL: yalnızca renkler okundu (doku dosyası yok)',
+                );
+            } catch (error) {
+                notes.push(`MTL okunamadı: ${error.message}`);
+            }
+        }
+
+        const loader = new OBJLoader();
+        if (materials) loader.setMaterials(materials);
+        return { object: loader.parse(decodeText(buffer)), animations: [], notes };
+    },
+};
+
+const mtl = {
+    id: 'mtl',
+    label: 'MTL',
+    extensions: ['mtl'],
+    standalone: true,
+    async parse(buffer, { files = [] }) {
+        const file = files.find((candidate) => /\.mtl$/i.test(candidate.name));
+        const source = file ? await file.text() : decodeText(buffer);
+        const { library, mapped } = await buildMtlLibrary(source, files.filter((candidate) => candidate !== file));
+        return { object: null, animations: [], materials: library, notes: [`${mapped} doku eşlendi`] };
     },
 };
 
@@ -72,6 +136,32 @@ const stl = {
     },
 };
 
+const ply = {
+    id: 'ply',
+    label: 'PLY',
+    extensions: ['ply'],
+    async parse(buffer) {
+        try {
+            return { object: groupFromGeometry(new PLYLoader().parse(buffer), 'ply'), animations: [] };
+        } catch (cause) {
+            throw new Error('PLY dosyası okunamadı. ASCII veya binary_little_endian formatında olmalı.', { cause });
+        }
+    },
+};
+
+const threemf = {
+    id: '3mf',
+    label: '3MF',
+    extensions: ['3mf'],
+    async parse(buffer) {
+        try {
+            return { object: new ThreeMFLoader().parse(buffer), animations: [] };
+        } catch (cause) {
+            throw new Error('3MF paketi okunamadı. Dosya geçerli bir 3MF kütüphanesi olmalı.', { cause });
+        }
+    },
+};
+
 const usd = {
     id: 'usd',
     label: 'USD / USDZ',
@@ -84,7 +174,7 @@ const usd = {
     },
 };
 
-export const importers = [fbx, gltf, obj, stl, usd];
+export const importers = [fbx, gltf, obj, mtl, stl, ply, threemf, usd];
 
 export const ACCEPTED_EXTENSIONS = importers.flatMap((entry) => entry.extensions);
 

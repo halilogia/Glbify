@@ -2,6 +2,90 @@
 
 Tüm önemli değişiklikler bu dosyada belgelenir.
 
+## [2.1.0] - 2026-09-27
+
+### ✨ Eklenenler
+
+**Yeni format desteği**
+
+- PLY okuma (ASCII + binary little endian)
+- 3MF okuma (baskı kütüphaneleri)
+- OBJ + MTL okuma: `.obj`, `.mtl` ve doku dosyaları birlikte bırakılabiliyor; doku referansları
+  data URL ile eşleştiriliyor, renkler ve dokular materyale uygulanıyor
+- Ayrı `.mtl` dosyası yüklenen OBJ modeline sonradan uygulanabiliyor
+- Çoklu dosya sürükle-bırak (model + yardımcı dosyalar)
+
+**Model düzenleme**
+
+- `TransformControls` gizmo: hareket / döndür / ölçek modları, OrbitControls ile otomatik
+  kilitleme
+- Dönüşüm "Sıfırla" ve "Çerçevele" kısayolları (canvas çift tıklama da çerçeveler)
+- Birim dönüşümü canlı önizleme: hedef yazılım seçilince sahne anında ölçekleniyor
+- GLB çıktısında node dönüşümleri TRS olarak yazılıyor (`trs: true`)
+- Gizmo dönüşümü birim ölçeği ile birleştiriliyor (kullanıcı ölçeği kaybolmuyor)
+
+**Materyal ve doku işleme**
+
+- Doku formatı dönüşümü: PNG / JPEG / WebP + kalite kaydırıcısı (glTF-Transform post-process)
+- Normal map yönünü ters çevirme (OpenGL ↔ DirectX)
+- Diffuse dokusundan Sobel tabanlı normal haritası üretme
+- Normal/veri haritaları kayıpsız kalacak şekilde PNG olarak korunuyor
+- Doku renk uzayı denetimi: renk haritaları sRGB, veri haritaları lineer olmalı; uyarılar
+  başlık panelindeki "Doku denetimi" rozetiyle gösteriliyor
+- FBX emissive / AO / roughness / metalness / alpha / displacement haritaları tam taşınıyor
+
+**Animasyon kontrolü**
+
+- Klip seçici, oynat / duraklat / durdur kontrolleri
+- Timeline slider (kare bazlı ileri-geri), hız (0.25x - 2x) ve döngü ayarları
+- Döngü kapalıyken klip sonunda otomatik durma
+- USDZ "Quick Look uyumlu" modu (animasyon kare kare yazılır)
+- USDZ çıktı doğrulaması: ZIP imzası, `.usda` kök dosyası, doku ve animasyon karesi sayımı
+
+**Dokümantasyon**
+
+- `ROADMAP.md` v2.1 bölümü tamamlandı; kalan iki kalem gerekçesiyle ertelendi
+- README, ARCHITECTURE, KNOWLEDGE ve GEMINI yeni mimariye göre güncellendi
+
+### 🔧 Düzeltmeler
+
+- `OBJLoader` materyal kitaplığı artık `setMaterials()` ile veriliyor (`parse(text, materials)`
+  imzası three r186'da kaldırılmış); MTL renk ve dokuları gerçekten uygulanıyor
+- Uzun süredir tıklanamayan animasyon/panel düğmeleri: `#controls` artık akış içinde
+  (`margin-top: auto`) değil mutlak konumlandırılıyordu ve yüksek başlık panelini örtüyordu
+- İlerleme çubuğu STL/OBJ/USDZ çıktılarında %100'e ulaşmıyordu
+- Boş (0 bayt) dosyalar "network error" yerine anlaşılır bir hata mesajı gösteriyor
+- Dosya limiti/boş dosya hataları konsola hata olarak yazılmıyor (gürültü azaltıldı)
+- Bildirimler panelin üzerine binmemesi için üst orta konuma taşındı
+- Panel yüksekliği `max-height` + kaydırma ile sınırlandı; gelişmiş ayarlar katlanır duruma getirildi
+- `.mtl` ve doku dosyaları "model" sanılıp çoklu dosya uyarısı tetiklemiyor
+
+### 📦 Değişiklikler
+
+- `src/io/drfacoEncoder.js` yerine `src/io/gltfPostprocess.js`: DRACO ve doku işlemleri tek
+  bir geçişte toplandı, `ALL_EXTENSIONS` kaydı ile genişletme güvenliği artırıldı
+- Yeni modüller: `core/transformController.js`, `core/animator.js`, `io/textureOps.js`,
+  `io/gltfPostprocess.js`, `io/usdz.js`
+- Ayar deposuna yeni anahtarlar: doku formatı, kalite, normal ters çevirme, normal üretimi,
+  USDZ Quick Look
+- Üretim önbelleği 3.65 MB (29 girdi); glTF-Transform yalnızca post-process gerektiğinde yükleniyor
+
+### ⏸️ Ertelenenler
+
+- **FBX yazma**: tarayıcıda çalışan bir FBX yazıcı yok; OBJ/STL/USDZ çıktıları tercih ediliyor
+- **Doku atlaslama**: three.js ve glTF-Transform'da UV paketleyici bulunmuyor; ayrı bir
+  araştırma gerektiriyor
+
+### ✅ Doğrulama
+
+- Headless Chrome ile uçtan uca kontrol: **41/41 geçti**
+  - STL / OBJ / PLY / 3MF içe aktarma, OBJ+MTL+PNG çoklu dosya materyal eşlemesi
+  - Animasyonlu GLB: klip paneli, oynat/durdur, süre okuma
+  - Dönüştürme gizmo modu, sıfırlama, canlı birim ölçeği (100x)
+  - GLB + DRACO, JPEG doku dönüşümü (`image/jpeg` doğrulandı), üretilen normal haritası
+  - USDZ ZIP/animasyon doğrulaması, dosya limiti reddi, çevrimdışı sayfa yükleme
+  - Geliştirme ve üretim modunda konsol hatası yok
+
 ## [2.0.0] - 2026-09-27
 
 ### ✨ Eklenenler

@@ -65,7 +65,7 @@ export class Viewer {
         const now = performance.now();
         const delta = Math.min((now - this.lastFrameTime) / 1000, 0.1);
         this.lastFrameTime = now;
-        if (this.mixer) this.mixer.update(delta);
+        this.animator?.update(delta);
         this.controls.update();
         this.renderer.render(this.scene, this.camera);
     }
@@ -78,37 +78,34 @@ export class Viewer {
     }
 
     clearModel() {
-        this.stopAnimations();
+        this.animator = null;
+        this.mixer = null;
         if (this.model) {
             disposeObject3D(this.model);
             this.model = null;
         }
+        this.grid.visible = false;
     }
 
-    playAnimations(clips) {
-        this.stopAnimations();
-        if (!this.model || !clips?.length) return 0;
-        this.mixer = new THREE.AnimationMixer(this.model);
-        for (const clip of clips) this.mixer.clipAction(clip).play();
-        return clips.length;
+    createMixer() {
+        this.mixer = this.model ? new THREE.AnimationMixer(this.model) : null;
+        return this.mixer;
     }
 
-    stopAnimations() {
-        if (!this.mixer) return;
-        this.mixer.stopAllAction();
-        this.mixer.uncacheRoot(this.mixer.getRoot());
-        this.mixer = null;
+    centerObject(object) {
+        const box = new THREE.Box3().setFromObject(object);
+        if (box.isEmpty()) box.set(new THREE.Vector3(-1, -1, -1), new THREE.Vector3(1, 1, 1));
+        const center = box.getCenter(new THREE.Vector3());
+        object.position.sub(center);
+        object.updateMatrixWorld(true);
+        return { box, center };
     }
 
-    frameObject(object) {
+    fitCamera(object) {
         const box = new THREE.Box3().setFromObject(object);
         if (box.isEmpty()) box.set(new THREE.Vector3(-1, -1, -1), new THREE.Vector3(1, 1, 1));
 
         const size = box.getSize(new THREE.Vector3());
-        const center = box.getCenter(new THREE.Vector3());
-        object.position.sub(center);
-        object.updateMatrixWorld(true);
-
         const radius = Math.max(size.length() * 0.5, 0.01);
         const verticalFov = THREE.MathUtils.degToRad(this.camera.fov);
         const horizontalFov = 2 * Math.atan(Math.tan(verticalFov * 0.5) * this.camera.aspect);
@@ -124,14 +121,24 @@ export class Viewer {
         this.controls.target.set(0, 0, 0);
         this.controls.update();
 
-        this.grid.position.y = box.min.y - center.y - radius * 0.04;
+        return { box, size, radius, distance };
+    }
+
+    updateGround() {
+        if (!this.model) return;
+        const box = new THREE.Box3().setFromObject(this.model);
+        if (box.isEmpty()) return;
+        const radius = Math.max(box.getSize(new THREE.Vector3()).length() * 0.5, 0.01);
+        this.grid.position.y = box.min.y - radius * 0.04;
         this.grid.scale.setScalar(Math.max((radius * 12) / 100, 0.01));
         this.grid.visible = true;
-
-        return { box, size, center, radius, distance };
     }
 
     resetView() {
-        if (this.model) this.frameObject(this.model);
+        if (this.model) {
+            this.centerObject(this.model);
+            this.fitCamera(this.model);
+            this.updateGround();
+        }
     }
 }

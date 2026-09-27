@@ -19,36 +19,43 @@ bundled with Vite, works offline as a PWA and never sends assets to a server.
 
 ```mermaid
 flowchart LR
-    Input["Drop / Upload (.fbx .glb .gltf .obj .stl .usdz)"] --> Limit{"Size <= limit?"}
-    Limit -->|No| Reject["Toast: limit aşıldı"]
+    Input["Drop / Upload (.fbx .glb .gltf .obj .mtl .stl .ply .3mf .usdz)"] --> Limit{"Size ok, not empty?"}
+    Limit -->|No| Reject["Toast: limit aşıldı / dosya boş"]
     Limit -->|Yes| Read["Chunked File.stream() read + progress"]
     Read --> Parse["importer.parse (io/importers.js)"]
     Parse --> Prepare["io/materials.js: Phong -> Standard, color spaces"]
-    Prepare --> Stats["io/modelStats.js: mesh/vertex/triangle counts"]
-    Stats --> Scene["core/viewer.js: center + frame + grid"]
-    Scene --> Export["exporters[format].run (io/exporters.js)"]
-    Export --> Draco{"GLB && DRACO?"}
-    Draco -->|Yes| DracoPass["io/dracoEncoder.js: glTF-Transform draco()"]
-    Draco -->|No| Blob["Blob URL download"]
-    DracoPass --> Blob
+    Prepare --> Audit["io/materials.js: renk uzayı denetimi"]
+    Audit --> Scene["core/viewer.js: center + fit + grid"]
+    Scene --> Gizmo["core/transformController.js: gizmo + unit scale"]
+    Scene --> Anim["core/animator.js: klip / transport"]
+    Gizmo --> Export["exporters[format].run (io/exporters.js)"]
+    Anim --> Export
+    Export --> Post{"GLB && (DRACO || doku işlemi)?"}
+    Post -->|Yes| PostPass["io/gltfPostprocess.js: draco() + doku"]
+    Post -->|No| Blob["Blob URL download"]
+    PostPass --> Blob
 ```
 
 ## 🗂️ 4. Module Boundaries
 
 | Layer | Responsibility |
 | --- | --- |
-| `src/main.js` | Orchestration: file intake, model lifecycle, export, error reporting |
-| `src/core` | three.js runtime (scene graph, render loop, decoder registration) |
-| `src/io` | Format-specific work: importers, exporters, DRACO, materials, stats, file IO |
-| `src/ui` | DOM wiring: drop zone, export panel, HUD, toasts (no three.js imports) |
+| `src/main.js` | Orchestration: file intake, model lifecycle, transform/animation wiring, export, error reporting |
+| `src/core` | three.js runtime (scene graph, render loop, decoder registration, gizmo, animation mixer) |
+| `src/io` | Format-specific work: importers, exporters, post-processing, materials, stats, file IO |
+| `src/ui` | DOM wiring: drop zone, export panel, HUD, animation panel, toasts (no three.js imports) |
 | `src/utils` | Framework-free helpers: formatting, settings store, GPU disposal |
 | `src/pwa` | Service worker registration and online/offline tracking |
-| `src/config.js` | Single source of truth for limits, DRACO presets and asset URLs |
+| `src/config.js` | Single source of truth for limits, DRACO presets, texture MIME types and asset URLs |
 
 Rules:
 - `core` and `io` never touch the DOM except for file input and download anchors.
 - `ui` never imports three.js; it only emits callbacks.
-- The glTF-Transform + Draco encoder chunk is loaded lazily, only on the first DRACO export.
+- The glTF-Transform + Draco encoder chunk is loaded lazily, only when DRACO or a texture operation runs.
+- The gizmo drives a proxy object; the model transform is `proxy × unitScale` so target-software changes
+  never destroy user edits.
+- UI panels stay in normal document flow; absolutely positioned overlays swallow clicks once the header
+  grows.
 
 ## 📂 5. Project Layout
 

@@ -16,8 +16,10 @@ Tarayıcı tabanlı 3D model dönüştürücü ve görüntüleyici. FBX, GLB/GLT
 | --- | --- | --- |
 | FBX | GLB, USDZ, STL, OBJ | Doku ve materyaller gömülü |
 | GLB / GLTF | GLB, USDZ, STL, OBJ | DRACO, KTX2/Basis ve meshopt desteklenir |
-| OBJ | GLB, USDZ, STL, OBJ | - |
+| OBJ | GLB, USDZ, STL, OBJ | `.mtl` + doku dosyaları birlikte bırakılabilir |
 | STL | GLB, USDZ, STL, OBJ | Binary + ASCII |
+| PLY | GLB, USDZ, STL, OBJ | ASCII + binary little endian |
+| 3MF | GLB, USDZ, STL, OBJ | Baskı kütüphaneleri |
 | USD / USDZ | GLB, USDZ, STL, OBJ | - |
 
 ### 🗜️ DRACO Sıkıştırma
@@ -27,10 +29,32 @@ Tarayıcı tabanlı 3D model dönüştürücü ve görüntüleyici. FBX, GLB/GLT
 - Encoder yalnızca ihtiyaç duyulduğunda yüklenir (tembel yükleme)
 - Dışa aktarımda kazanılan yüzde arayüzde gösterilir
 
+### 🎨 Doku ve Materyal İşleme
+
+- Doku formatı dönüşümü: PNG / JPEG / WebP + kalite ayarı
+- Doku çözünürlüğü: 2K / 4K / dokusuz
+- Normal map yönünü ters çevirme (OpenGL ↔ DirectX)
+- Diffuse dokusundan normal haritası üretme (Sobel)
+- Doku renk uzayı denetimi: renk haritaları sRGB, veri haritaları lineer olmalı
+- FBX emissive / AO / roughness / metalness / alpha / displacement haritaları taşınır
+
+### ✏️ Model Düzenleme
+
+- Görsel gizmo: hareket, döndürme, ölçek
+- Dönüşüm sıfırlama ve çerçeveleme kısayolları (canvas çift tıklama)
+- Birim dönüşümü canlı önizleme (1x, 100x, 0.01x, 0.0254x)
+- GLB çıktısında dönüşümler TRS olarak yazılır
+
+### 🎬 Animasyon Kontrolü
+
+- Klip seçici, oynat / duraklat / durdur
+- Timeline slider, hız (0.25x - 2x) ve döngü ayarı
+- USDZ "Quick Look uyumlu" modu (animasyon kare kare yazılır)
+
 ### 🍎 USDZ Desteği
 
 - Apple AR Quick Look ve Quick Look görüntüleyicileri için USDZ paketleme
-- Materyal ve doku gömülü, kamera açısına göre otomatik çerçeveleme
+- Çıktı doğrulaması: ZIP imzası, `.usda` kök dosyası, doku ve animasyon karesi sayımı
 
 ### 🧱 3B Baskı
 
@@ -104,22 +128,26 @@ Glbify/
 │   └── favicon.png
 ├── src/
 │   ├── main.js               # Uygulama denetleyicisi (GlbifyApp)
-│   ├── config.js             # Sınırlar, DRACO seviyeleri, asset yolları
+│   ├── config.js             # Sınırlar, DRACO seviyeleri, doku MIME, asset yolları
 │   ├── core/
-│   │   ├── viewer.js         # Sahne, kamera, ışık, render döngüsü
-│   │   └── decoders.js       # DRACO / KTX2 / meshopt kayıtları
+│   │   ├── viewer.js         # Sahne, kamera, ışık, render döngüsü, çerçeveleme
+│   │   ├── decoders.js       # DRACO / KTX2 / meshopt kayıtları
+│   │   ├── transformController.js # Gizmo + birim ölçeği birleştirme
+│   │   └── animator.js       # Klip yönetimi, play/pause, hız, döngü
 │   ├── io/
-│   │   ├── importers.js      # FBX, GLTF, OBJ, STL, USD okuyucuları
+│   │   ├── importers.js      # FBX, GLTF, OBJ(+MTL), STL, PLY, 3MF, USD okuyucuları
 │   │   ├── exporters.js      # GLB, USDZ, STL, OBJ yazıcıları
-│   │   ├── dracoEncoder.js   # Tembel yüklenen Draco encoder + glTF-Transform
-│   │   ├── materials.js      # Phong -> Standard materyal dönüşümü
+│   │   ├── gltfPostprocess.js# DRACO + doku format/normal işlemleri
+│   │   ├── textureOps.js     # Canvas tabanlı doku kodlama/işleme
+│   │   ├── usdz.js           # USDZ paket doğrulaması
+│   │   ├── materials.js      # Phong -> Standard dönüşümü, renk uzayı denetimi, MTL uygulama
 │   │   ├── modelStats.js     # Mesh / vertex / üçgen istatistikleri
 │   │   ├── fileReader.js     # Limit kontrollü, ilerlemeli dosya okuma
 │   │   └── download.js       # Blob indirme yardımcısı
 │   ├── ui/
-│   │   ├── dropzone.js       # Sürükle-bırak ve dosya seçici
-│   │   ├── exportPanel.js    # Ölçek, doku ve DRACO ayarları
-│   │   ├── hud.js            # Başlık paneli, rozetler, ilerleme
+│   │   ├── dropzone.js       # Çoklu dosya sürükle-bırak ve dosya seçici
+│   │   ├── exportPanel.js    # Ölçek, doku, DRACO ayarları
+│   │   ├── hud.js            # Başlık paneli, rozetler, ilerleme, animasyon paneli
 │   │   └── toast.js          # Bildirimler
 │   ├── pwa/serviceWorker.js  # SW kaydı ve çevrimdışı takibi
 │   ├── utils/                # Biçimlendirme, DOM, ayarlar, GPU temizliği
@@ -135,16 +163,19 @@ Glbify/
 - **Vite 8** - Geliştirme sunucusu ve üretim derlemesi
 - **Tailwind CSS 4** - Utility-first CSS
 - **vite-plugin-pwa / Workbox** - Service worker ve manifest
-- **glTF-Transform 4 + draco3dgltf** - DRACO sıkıştırma
-- **FBXLoader, GLTFLoader, OBJLoader, STLLoader, USDLoader** - Okuyucular
+- **glTF-Transform 4 + draco3dgltf** - DRACO sıkıştırma ve doku post-process
+- **FBXLoader, GLTFLoader, OBJLoader, MTLLoader, STLLoader, PLYLoader, ThreeMFLoader, USDLoader** - Okuyucular
 - **GLTFExporter, USDZExporter, OBJExporter, STLExporter** - Yazıcılar
+- **TransformControls, OrbitControls** - Model düzenleme ve kamera
 
 ## 💡 Kullanım
 
 1. **Model Yükle**: Dosyayı sürükle-bırak veya "Dosya Seç" butonunu kullan
+   (OBJ için `.obj` + `.mtl` + dokuları birlikte bırakabilirsin)
 2. **Önizle**: Model otomatik olarak sahneye yüklenir, istatistikler gösterilir
-3. **Ayarla**: Hedef yazılıma göre ölçek, doku çözünürlüğü ve DRACO seviyesi
-4. **Dışa Aktar**: GLB, USDZ, STL veya OBJ indir
+3. **Düzenle**: Gizmo ile ölçek/rotasyon/öteleme, gelişmiş ayarlardan birim, doku ve DRACO
+4. **Oynat**: Animasyonlu modellerde klip seçici, timeline ve hız kontrolleri
+5. **Dışa Aktar**: GLB, USDZ, STL veya OBJ indir
 
 > Not: `.gltf` dosyalarının dış kaynakları (`.bin`, dokular) tarayıcıdan okunamaz.
 > Tek dosyalı `.glb` önerilir.

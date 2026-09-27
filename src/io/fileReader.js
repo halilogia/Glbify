@@ -16,7 +16,15 @@ function format(bytes) {
     return bytes >= MB ? `${Math.round(bytes / MB)} MB` : `${Math.round(bytes / 1024)} KB`;
 }
 
+export class EmptyFileError extends Error {
+    constructor(file) {
+        super(`"${file.name}" dosyası boş görünüyor (0 bayt). Dosyayı yeniden dışa aktarmayı deneyin.`);
+        this.name = 'EmptyFileError';
+    }
+}
+
 export async function readFile(file, { limitBytes, onProgress } = {}) {
+    if (file.size === 0) throw new EmptyFileError(file);
     if (limitBytes && file.size > limitBytes) throw new FileLimitError(file, limitBytes);
 
     if (typeof file.stream !== 'function') return readWithFileReader(file, onProgress);

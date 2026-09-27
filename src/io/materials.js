@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 
 const colorMaps = ['map', 'emissiveMap', 'specularMap'];
+const dataMaps = ['normalMap', 'roughnessMap', 'metalnessMap', 'aoMap', 'alphaMap', 'bumpMap', 'displacementMap'];
 
 function fixTextureSpaces(material) {
     for (const slot of colorMaps) {
@@ -9,6 +10,56 @@ function fixTextureSpaces(material) {
             texture.colorSpace = THREE.SRGBColorSpace;
         }
     }
+}
+
+export function auditColorSpaces(root) {
+    const report = { textures: 0, issues: [] };
+
+    root.traverse((child) => {
+        const { material } = child;
+        if (!child.isMesh || !material) return;
+        const list = Array.isArray(material) ? material : [material];
+
+        for (const entry of list) {
+            for (const slot of colorMaps) {
+                const texture = entry[slot];
+                if (!texture) continue;
+                report.textures += 1;
+                if (texture.colorSpace !== THREE.SRGBColorSpace) {
+                    report.issues.push(`${describe(slot)}: sRGB değil (lineer)`);
+                }
+            }
+            for (const slot of dataMaps) {
+                const texture = entry[slot];
+                if (!texture) continue;
+                report.textures += 1;
+                if (texture.colorSpace === THREE.SRGBColorSpace) {
+                    report.issues.push(`${describe(slot)}: sRGB işaretli (harita verisi bozulur)`);
+                }
+            }
+            if (!entry.normalMap && entry.bumpMap) {
+                report.issues.push('bumpMap normalMap yerine kullanılıyor, ışıklandırma farklı olur');
+            }
+        }
+    });
+
+    return report;
+}
+
+function describe(slot) {
+    const labels = {
+        map: 'diffuse',
+        emissiveMap: 'emissive',
+        specularMap: 'specular',
+        normalMap: 'normal',
+        roughnessMap: 'roughness',
+        metalnessMap: 'metalness',
+        aoMap: 'AO',
+        alphaMap: 'alpha',
+        bumpMap: 'bump',
+        displacementMap: 'displacement',
+    };
+    return labels[slot] ?? slot;
 }
 
 function convertToStandard(oldMat) {
@@ -88,4 +139,25 @@ export function prepareModel(root) {
         if (child.isMesh || child.isSkinnedMesh) prepareMesh(child);
     });
     root.updateMatrixWorld(true);
+}
+
+export function applyMtlLibrary(root, library) {
+    if (!root || !library) return 0;
+    let applied = 0;
+
+    const replace = (material) => {
+        if (!material?.name) return material;
+        const found = library.getMaterial(material.name);
+        return found ?? material;
+    };
+
+    root.traverse((child) => {
+        if (!child.isMesh) return;
+        const list = Array.isArray(child.material) ? child.material : [child.material];
+        const next = list.map(replace);
+        if (next.some((value, index) => value !== list[index])) applied += 1;
+        child.material = Array.isArray(child.material) ? next : next[0];
+    });
+
+    return applied;
 }

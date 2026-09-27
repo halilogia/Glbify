@@ -2,7 +2,19 @@ import { setHidden, setText, toggleClass } from '../utils/dom.js';
 import { formatBytes, formatCount, formatDimensions } from '../utils/format.js';
 
 export function createHud(elements) {
-    const { fileInfo, filename, meshes, vertices, triangles, debug, animBadge, animLabel, netBadge, updateBadge } = elements;
+    const {
+        fileInfo,
+        filename,
+        meshes,
+        vertices,
+        triangles,
+        debug,
+        auditButton,
+        animBadge,
+        animLabel,
+        netBadge,
+        updateBadge,
+    } = elements;
 
     return {
         showDropZone(visible) {
@@ -44,6 +56,12 @@ export function createHud(elements) {
             setText(debug, parts.join('  |  '));
         },
 
+        setAudit(report) {
+            const issues = report?.issues?.length ?? 0;
+            toggleClass(auditButton, 'hidden', issues === 0);
+            if (issues) setText(auditButton, `Doku denetimi: ${issues} uyarı`);
+        },
+
         setAnimation(count) {
             const active = count > 0;
             toggleClass(animBadge, 'hidden', !active);
@@ -65,6 +83,7 @@ export function createHud(elements) {
             setText(filename, '');
             setText(debug, '');
             setHidden(animBadge, true);
+            toggleClass(auditButton, 'hidden', true);
         },
     };
 }

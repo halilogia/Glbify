@@ -3,46 +3,21 @@
 Glbify için bundan sonra izlenecek yol. Tamamlanan işler [CHANGELOG.md](CHANGELOG.md) içinde kayıtlıdır;
 bu dosya yalnızca **yapılacakları** içerir.
 
-> Sürüm: v2.0.0 sonrası plan · Güncelleme: 2026-09-27
+> Sürüm: v2.1.0 sonrası plan · Güncelleme: 2026-09-27
+
+## ✅ Tamamlanan: v2.1 — Dönüştürme Derinliği
+
+Bölümün tamamı tamamlandı (bkz. CHANGELOG 2.1.0). İki kalem gerekçesiyle ertelendi:
+
+- **FBX yazma** — tarayıcıda çalışan FBX yazıcı yok; OBJ/STL/USDZ çıktıları tercih ediliyor
+- **Doku atlaslama** — three.js ve glTF-Transform'da UV paketleyici yok, ayrı araştırma gerekli
+
+USDZ Quick Look doğrulamasının cihaz üzerindeki (iOS/macOS) son adımı elle yapılacak;
+otomatik kısmı ZIP/`.usda`/doku/kare denetimiyle tamamlandı.
 
 ---
 
-## 🎯 v2.1 — Dönüştürme Derinliği
-
-### Format desteği
-
-- [ ] PLY okuma (`PLYLoader`, binary + ASCII)
-- [ ] OBJ + MTL okuma (materyal ve doku eşlemesiyle)
-- [ ] 3MF okuma (baskı endüstrisi için)
-- [ ] USDZ çıktısında Quick Look uyumluluk testi (iOS/macOS cihazlarda doğrulama)
-- [ ] FBX yazma (üçüncü parti kütüphane gerektiriyor, araştırma aşamasında)
-
-### Model düzenleme
-
-- [ ] Görsel gizmo ile ölçek / rotasyon / öteleme
-- [ ] Model dönüşüm matrisini GLB node TRS olarak yazma (`GLTFExporter` `trs` seçeneği)
-- [ ] Modeli orijine resetleme ve çerçeveleme (frame) kısayolu
-- [ ] Birim dönüşüm önizlemesi (ölçek seçilince sahnede canlı güncelleme)
-
-### Materyal ve doku işleme
-
-- [ ] Doku formatı dönüşümü (PNG ↔ JPEG ↔ WebP)
-- [ ] Normal map doğrulama/ters çevirme (OpenGL ↔ DirectX)
-- [ ] sRGB / lineer renk uzayı denetimi ve uyarısı
-- [ ] Emissive / AO / roughness haritalarının FBX'ten tam taşınması
-- [ ] Doku atlaslama (çoklu UV kümeli meshler için)
-
-### Animasyon
-
-- [ ] Play / Pause / Stop kontrolleri
-- [ ] Timeline slider (kare bazlı ileri-geri)
-- [ ] Çoklu animasyon varsa klip seçici
-- [ ] Animasyon hızı ve döngü ayarları
-- [ ] USDZ çıktısında animasyon kare bakımından doğrulama
-
----
-
-## ⚡ v2.2 — Performans ve Kalite
+## 🎯 v2.2 — Performans ve Kalite
 
 ### Optimizasyon
 
@@ -51,6 +26,7 @@ bu dosya yalnızca **yapılacakları** içerir.
 - [ ] KTX2 / Basis Universal doku sıkıştırma (`KHR_texture_basisu`)
 - [ ] `EXT_meshopt_compression` çıktı seçeneği
 - [ ] Quantization preset'leri ve çıktı boyutu tahmini (export öncesi)
+- [ ] Doku atlaslama (UV packer araştırması)
 
 ### Büyük dosya performansı
 
@@ -62,7 +38,8 @@ bu dosya yalnızca **yapılacakları** içerir.
 ### Test ve CI
 
 - [ ] Vitest ile birim testleri (importers, exporters, material dönüşümü, istatistikler)
-- [ ] Playwright ile uçtan uca testler (yükleme → dışa aktarma → DRACO doğrulama)
+- [ ] Playwright ile uçtan uca testler
+- [ ] Mevcut headless Chrome kontrol betiğini depoya taşı (`tests/` klasörü) ve CI'a bağla
 - [ ] GitHub Actions'da test + build + Pages dağıtımı tek akışta
 - [ ] Sürüm bazlı smoke test: örnek modeller (küçük/orta/büyük) fixture klasörü
 
@@ -88,10 +65,11 @@ bu dosya yalnızca **yapılacakları** içerir.
 - [ ] Materyal editörü (PBR parametreleri, doku atama)
 - [ ] Işık ve environment ayarları, HDR environment yükleme
 - [ ] Model düzenleme geçmişi (undo/redo)
+- [ ] Gezinme/animasyon için kamera kısayolları (kare atla, döngü bölgesi)
 
 ### Toplu işleme
 
-- [ ] Çoklu dosya yükleme ve sıralı dönüştürme
+- [ ] Sıralı çoklu model dönüştürme (klasör sürükle-bırak)
 - [ ] ZIP içinden model yükleme
 - [ ] Preset kaydetme / yükleme (ölçek, doku, DRACO, format)
 - [ ] Komut satırı arayüzü: `@glbify/cli` (Node + headless three.js)
@@ -101,13 +79,13 @@ bu dosya yalnızca **yapılacakları** içerir.
 - [ ] Sketchfab / Google Drive / Dropbox bağlantısı
 - [ ] Paylaşılabilir link ile model önizleme (salt görüntüleme modu)
 - [ ] Çevrimiçi çok dilli arayüz (TR/EN), i18n altyapısı
+- [ ] FBX yazma (üçüncü parti WASM kütüphane araştırması)
 
 ---
 
 ## 💡 Değerlendirme Aşamasında
 
 - [ ] GPU tabanlı decimation (compute shader)
-- [ ] Model düzenleme için geri al / yinele altyapısı
 - [ ] Otomatik ölçek tahmini (birim algılama: mm/cm/m)
 - [ ] Kompresyon profili paylaşımı (uygulama içi link)
 - [ ] Vite dışı dağıtım seçenekleri (Electron / Tauri masaüstü paketi)
@@ -116,8 +94,8 @@ bu dosya yalnızca **yapılacakları** içerir.
 
 ## 📌 Öncelik Notları
 
-1. **FBX yazma** ve **bulut entegrasyonu** yüksek geliştirme maliyeti taşır; çekirdek dönüştürme
-   deneyimi tamamlanana kadar erteleniyor.
-2. **Web Worker** yaklaşımı doku taşıma maliyeti nedeniyle ayrı bir araştırma gerektiriyor;
+1. **Web Worker** yaklaşımı doku taşıma maliyeti nedeniyle ayrı bir araştırma gerektiriyor;
    önce ölçüm yapılacak.
+2. **Test altyapısı** (Vitest + Playwright) v2.2'nin ilk işi: şu an doğrulama elle kurulan
+   headless Chrome betiğiyle yapılıyor ve depoda tutulmuyor.
 3. Her sürüm `CHANGELOG.md` ve `README.md` güncellenerek taglenir.

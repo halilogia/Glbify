@@ -4,6 +4,11 @@ const defaults = {
     maxFileMB: 512,
     scale: '1',
     textureSize: '4096',
+    textureFormat: 'original',
+    textureQuality: 0.92,
+    invertNormals: false,
+    generateNormals: false,
+    usdzQuickLook: false,
     draco: true,
     dracoLevel: 'balanced',
 };
