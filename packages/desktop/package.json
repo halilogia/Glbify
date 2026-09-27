@@ -1,0 +1,22 @@
+{
+  "name": "@glbify/desktop",
+  "version": "3.2.0",
+  "description": "Glbify masaüstü paketi (Electron kabugu)",
+  "license": "GPL-3.0",
+  "private": true,
+  "type": "module",
+  "main": "main.cjs",
+  "files": [
+    "main.cjs",
+    "preload.cjs",
+    "resolveDist.js",
+    "README.md"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "start": "electron .",
+    "test": "node --test"
+  }
+}

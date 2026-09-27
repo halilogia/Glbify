@@ -153,6 +153,24 @@ npm run glbify -- convert model.glb model.obj
 Seçenekler: `--simplify <0-1>`, `--draco <max|balanced|high>`, `--meshopt`, `--ktx2`, `--uastc`,
 `--no-weld`. `convert` dokuları OBJ/STL'ye gömmez ve bunu uyarı olarak bildirir.
 
+## 🌍 Çok Dilli Arayüz
+
+- TR/EN arayüzü; seçim tarayıcıda saklanır, `<html lang>` güncellenir
+- Statik arayüz `data-i18n` öznitelikleriyle, dinamik mesajlar `t()` ile çevrilir
+- Ayarlar panelinden **sıkıştırma profili** kodu üretilir (base64url) ve paylaşılabilir; yapıştırılan
+  kod tüm dışa aktarma seçeneklerine uygulanır
+
+## 🖥️ Masaüstü Uygulaması (`@glbify/desktop`)
+
+`packages/desktop` Electron kabuğudur; uygulamanın aynı derlemesini `file://` üzerinden yükler.
+
+```bash
+npm run glbify:desktop   # electron packages/desktop
+```
+
+`npm run build` çalıştırılmamışsa pencere derleme yapılmadığını söyler. Dağıtım için
+`electron-builder` kullanılmalıdır (bkz. `packages/desktop/README.md`).
+
 ## 📦 Proje Yapısı
 
 ```text
@@ -202,10 +220,11 @@ Glbify/
 │   │   └── toast.js          # Bildirimler
 │   ├── pwa/serviceWorker.js  # SW kaydı ve çevrimdışı takibi
 │   ├── pwa/install.js        # Kurulum istemi, sürüm geçmişi, önbellek yönetimi
-│   ├── utils/                # Biçimlendirme, DOM, ayarlar, paylaşım, bellek, GPU temizliği
+│   ├── i18n/index.js         # TR/EN sözlük ve çeviri uygulaması
 │   ├── shims/node-builtins.js# glTF-Transform için node:* taklidi
 │   └── styles/main.css       # Tailwind katmanları + bileşen stilleri
 ├── packages/cli/             # @glbify/cli (inspect / optimize / convert)
+├── packages/desktop/         # Electron masaüstü kabuğu
 ├── brain/                    # Proje dokümantasyonu
 └── docs/                     # Ek dokümantasyon
 ```
@@ -223,6 +242,7 @@ Glbify/
 - **GLTFExporter, USDZExporter, OBJExporter, STLExporter** - Yazıcılar
 - **TransformControls, OrbitControls** - Model düzenleme ve kamera
 - **Vitest, Puppeteer** - Birim ve uçtan uca testler
+- **Electron** (isteğe bağlı) - Masaüstü paketi
 
 ## 💡 Kullanım
 

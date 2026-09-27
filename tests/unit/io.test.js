@@ -34,10 +34,14 @@ describe('isWorkerParseSupported', () => {
         expect(isWorkerParseSupported('obj', { size: 1024 })).toBe(true);
     });
 
-    it('doku gerektiren OBJ ve buyuk dosyalari disarida birakir', () => {
-        expect(isWorkerParseSupported('obj', { hasAuxiliaryFiles: true })).toBe(false);
-        expect(isWorkerParseSupported('stl', { size: 400 * 1024 * 1024 })).toBe(false);
+    it('doku isteyen OBJ ve buyuk dosyalari disarida birakir', () => {
         expect(isWorkerParseSupported('fbx', { size: 1024 })).toBe(false);
+        expect(isWorkerParseSupported('glb', { size: 1024 })).toBe(false);
+        expect(isWorkerParseSupported('stl', { size: 400 * 1024 * 1024 })).toBe(false);
+    });
+
+    it('MTL ile birlikte gelen OBJ isciye gonderilir', () => {
+        expect(isWorkerParseSupported('obj', { size: 1024 })).toBe(true);
     });
 });
 

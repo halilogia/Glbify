@@ -57,7 +57,7 @@ function buildScene({ format, payload, objects }) {
         const group = new THREE.Group();
         group.name = 'obj';
         for (const entry of objects) {
-            const mesh = new THREE.Mesh(hydrate(entry.payload), defaultMaterial());
+            const mesh = new THREE.Mesh(hydrate(entry.payload), buildMaterial(entry.material));
             mesh.name = entry.name;
             group.add(mesh);
         }
@@ -73,14 +73,43 @@ function defaultMaterial() {
     return new THREE.MeshStandardMaterial({ side: THREE.DoubleSide, roughness: 0.6, metalness: 0.05 });
 }
 
-export function isWorkerParseSupported(extension, { hasAuxiliaryFiles = false, size = 0 } = {}) {
+function buildMaterial(descriptor) {
+    if (!descriptor) return defaultMaterial();
+
+    const material = new THREE.MeshStandardMaterial({
+        name: descriptor.name ?? '',
+        color: descriptor.color ?? '#ffffff',
+        side: descriptor.side ?? THREE.DoubleSide,
+        transparent: Boolean(descriptor.transparent),
+        opacity: descriptor.opacity ?? 1,
+    });
+
+    if (descriptor.specular) {
+        const specular = new THREE.Color(descriptor.specular);
+        const average = (specular.r + specular.g + specular.b) / 3;
+        material.metalness = Math.min(Math.max(average, 0), 1) * 0.8;
+    }
+
+    const shininess = typeof descriptor.shininess === 'number' ? descriptor.shininess : 30;
+    material.roughness = Math.min(Math.max(1 - shininess / 128, 0.05), 1);
+
+    for (const [slot, entry] of Object.entries(descriptor.maps ?? {})) {
+        const texture = new THREE.Texture(entry.bitmap);
+        texture.colorSpace = entry.colorSpace ?? THREE.NoColorSpace;
+        texture.needsUpdate = true;
+        material[slot] = texture;
+    }
+
+    return material;
+}
+
+export function isWorkerParseSupported(extension, { size = 0 } = {}) {
     if (!WORKER_FORMATS.has(extension)) return false;
     if (size > MAX_WORKER_BYTES) return false;
-    if (extension === 'obj' && hasAuxiliaryFiles) return false;
     return true;
 }
 
-export async function parseInWorker(extension, buffer, { signal } = {}) {
+export async function parseInWorker(extension, buffer, { signal, mtl, textures } = {}) {
     const instance = getWorker();
     if (!instance) throw new Error('Worker desteklenmiyor.');
 
@@ -97,7 +126,7 @@ export async function parseInWorker(extension, buffer, { signal } = {}) {
         };
 
         signal?.addEventListener('abort', abort, { once: true });
-        instance.postMessage({ id, format: extension, buffer: copy }, [copy]);
+        instance.postMessage({ id, format: extension, buffer: copy, mtl, textures }, [copy]);
     }).then((result) => ({
         object: buildScene({ format: extension, payload: result.payload, objects: result.objects }),
         animations: [],

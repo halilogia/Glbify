@@ -1,6 +1,6 @@
 {
   "name": "@glbify/cli",
-  "version": "3.0.0",
+  "version": "3.2.0",
   "description": "Glbify komut satiri araclari: model inceleme, optimizasyon ve donusturme",
   "license": "GPL-3.0",
   "type": "module",

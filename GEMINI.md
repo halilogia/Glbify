@@ -19,6 +19,7 @@ Glbify/
 ├── src/
 │   ├── main.js               # Uygulama denetleyicisi (GlbifyApp, async start())
 │   ├── config.js             # Limitler, DRACO seviyeleri, asset URL'leri (tembel çözülür)
+│   ├── i18n/index.js         # TR/EN sözlük, t(), applyTranslations()
 │   ├── core/
 │   │   ├── viewer.js         # Sahne, kamera, ışık, grid, render döngüsü, XR
 │   │   ├── renderer.js       # WebGL2 / WebGPU seçimi, yetenek tespiti
@@ -33,6 +34,7 @@ Glbify/
 │   │   ├── gltfPostprocess.js# weld/dedup/prune, simplify, DRACO|Meshopt, KTX2, doku
 │   │   ├── workerParser.js   # Worker istemcisi + main thread geri düşüşü
 │   │   ├── parseWorker.js    # Worker gövdesi
+│   │   ├── workerImageShim.js# Worker'da ImageBitmap tabanlı doku yükleyici
 │   │   ├── estimate.js       # Çıktı boyutu tahmini
 │   │   ├── materialEditor.js # Materyal listeleme/yama/durum
 │   │   ├── textureOps.js     # Canvas doku kodlama/işleme
@@ -42,19 +44,20 @@ Glbify/
 │   │   ├── fileReader.js     # Limit/boş dosya kontrollü, iptal edilebilir okuma
 │   │   └── download.js       # Blob indirme
 │   ├── ui/                   # dropzone, exportPanel, sidePanel, hud, toast
-│   ├── utils/                # format, store, share, dom, dispose, memory
+│   ├── utils/                # format, store, share, profile, dom, dispose, memory
 │   ├── pwa/                  # serviceWorker.js, install.js
 │   ├── shims/node-builtins.js# node:* taklidi (glTF-Transform)
 │   └── styles/main.css       # Tailwind v4 katmanları + bileşen CSS'i
 ├── packages/cli/             # @glbify/cli: inspect / optimize / convert
+├── packages/desktop/         # Electron masaüstü kabuğu
 ├── tests/
 │   ├── unit/                 # Vitest birim testleri
 │   ├── e2e/app.spec.mjs      # Puppeteer uçtan uca test
 │   └── fixtures/             # Test modelleri
 ├── vitest.config.js
-├── docs/KNOWLEDGE.md         # Format kuralları, post-process, worker ve build notları
+├── docs/KNOWLEDGE.md         # Format kuralları, post-process, worker, i18n notları
 ├── ARCHITECTURE.md           # Katman sınırları, boru hattı, doğrulama
-└── .github/workflows/        # test → cli → e2e → build → Pages
+└── .github/workflows/        # test → cli → desktop → e2e → build → Pages
 ```
 
 ## 🔧 Teknoloji Stack
@@ -132,15 +135,22 @@ Glbify/
     değil, aksi halde shader hatası verir).
 13. **three.js r186**: `USDLoader` (`USDZLoader` deprecated), `OBJLoader.setMaterials()`,
     `TransformControls.getHelper()` ve paketlenmiş decoder URL'leri kullanılır.
+14. **i18n**: yeni kullanıcıya görünen metin `t('key')` ile yazılır; statik markup'ta
+    `data-i18n*` özniteliği kullanılır. İki sözlükte de anahtar kümesi eşit olmalı.
+15. **Worker'da doku**: `MTLLoader` parse'ı `MaterialCreator` döndürür, `.load()` **yoktur**;
+    `preload()` + `getAsArray()` çağrılır ve dokular `texture.image.image` dolana kadar beklenir.
+16. **Profil kodu**: `utils/profile.js` alanları kısa kodlarla (base64url) saklar; yeni bir
+    dışa aktarma seçeneği eklenirse `FIELD` tablosuna girmeli.
 
 ## 🧪 Test Etme
 
 ```bash
-npm test          # Vitest birim testleri
-npm run test:cli  # CLI testleri (node:test)
-npm run build     # üretim derlemesi (dist/)
-npm run preview   # üretim çıktısını sun
-npm run test:e2e  # Puppeteer uçtan uca test (GLBY_BASE_URL ile adres değiştirilebilir)
+npm test            # Vitest birim testleri
+npm run test:cli    # CLI testleri (node:test)
+npm run test:desktop# Electron kabuğu testleri (node:test)
+npm run build       # üretim derlemesi (dist/)
+npm run preview     # üretim çıktısını sun
+npm run test:e2e    # Puppeteer uçtan uca test (GLBY_BASE_URL ile adres değiştirilebilir)
 ```
 
 Manuel kontrol listesi:
@@ -165,8 +175,10 @@ Manuel kontrol listesi:
 18. USDZ geçerli ZIP; doku ve animasyon karesi bildirimi geliyor
 19. Büyük dosya bellek korumasıyla reddediliyor, İptal butonu çalışıyor
 20. Ayar linki kopyalanıyor; `?view=1` salt görüntüleme modunu açıyor
-21. Service worker kurulduktan sonra sayfa çevrimdışı yeniden yükleniyor
-22. Konsolda hata yok
+21. **Dil değişimi** (TR ↔ EN) statik ve dinamik metinleri güncelliyor, `<html lang>` değişiyor
+22. **Sıkıştırma profili**: kopyala/yapıştır ile tüm seçenekler uygulanıyor
+23. Service worker kurulduktan sonra sayfa çevrimdışı yeniden yükleniyor
+24. Konsolda hata yok
 
 ## 📝 Commit Mesaj Formatı
 

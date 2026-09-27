@@ -2,6 +2,70 @@
 
 Tüm önemli değişiklikler bu dosyada belgelenir.
 
+## [3.2.0] - 2026-09-27
+
+### ✨ Eklenenler
+
+**Çok dilli arayüz (TR/EN)**
+
+- `src/i18n`: TR/EN sözlükleri, `t(key, vars)` çevirisi, `{placeholder}` doldurma
+- Statik arayüz `data-i18n`, `data-i18n-title`, `data-i18n-aria`, `data-i18n-placeholder`
+  öznitelikleriyle çevriliyor
+- Başlıktaki TR/EN seçicisi, tercih `localStorage`'da saklanıyor, `<html lang>` güncelleniyor
+- Yükleme ilerlemesi, dışa aktarma/toast mesajları, sistem paneli ve tahmin metni de çevrildi
+- `<html lang="en">` ile İngilizce çalışan sayfa
+
+**Sıkıştırma profili paylaşımı**
+
+- Tüm dışa aktarma seçenekleri kısa bir kod halinde: `base64url(JSON)` (Sahne paneli)
+- "Kopyala" ile panoya alınır, "Uygula" ile yapıştırılan kod tüm seçeneklere uygulanır
+- Profil özeti (`100x · jpeg · DRACO:max · KTX2`) bildirimle gösterilir
+
+**Worker'da doku çözme**
+
+- `src/io/workerImageShim.js`: worker ortamında `document`/`Image` yerine `ImageBitmap` tabanlı
+  doku yükleyici (MTL/OBJ için)
+- OBJ + MTL + doku dosyaları artık **arka plan işçisinde** işlenir; doku görüntüleri
+  `ImageBitmap` olarak transfer edilir ve ana iş parçacığında `Texture` olarak yeniden kurulur
+- `MaterialCreator.getAsArray()` + doku hazır olana kadar bekleme (zaman aşımlı)
+- FBX/GLTF/USD doku içerdiği için ana iş parçacığında kalıyor
+
+**Masaüstü paketi**
+
+- `packages/desktop`: Electron kabuğu (main/preload + yol çözümleyici), `npm run glbify:desktop`
+- `contextIsolation: true`, `nodeIntegration: false`, `sandbox: true`; dış bağlantılar tarayıcıda
+- `npm run test:desktop` ile yol/URL çevirisi testleri (3 test)
+
+### 🔧 Düzeltmeler
+
+- Worker'daki `MaterialCreator` için yanlış `load()` çağrısı vardı (three r186'da bu metot yok,
+  dokular `create()` sırasında yükleniyor) → `getAsArray()` + doku bekleme ile değiştirildi
+- Üç.js'in `ImageLoader` yapısı `addEventListener` bekliyor; worker shim'i yalnızca
+  `onload`/`onerror` destekliyordu → tam olay hedefi (event target) eklendi
+- `preload()` `materialsArray` doldurmuyor; bekleme döngüsü boş listede hemen çıkıyordu
+
+### 📦 Değişiklikler
+
+- Yeni modüller: `src/i18n/index.js`, `src/utils/profile.js`, `src/io/workerImageShim.js`
+- Yeni paket: `packages/desktop` (workspace)
+- `npm run test:desktop` betiği ve CI adımı eklendi
+- Toastlar araç çubuğunun altında kalması için 72px'e taşındı
+
+### 📋 Kapsam Kararları
+
+- **GPU tabanlı decimation ertelendi**: meshoptimizer'ın QEM sadeleştirmesi CPU tabanlı ve
+  WGSL karşılığı yok; GPU uygulaması kalite eşdeğerliği için tam bir kenar çökme hattı ve
+  doğrulama gerektiriyor. WebGL/WebGPU backend'i hazır; decimation CPU'da çalışmaya devam ediyor.
+- **Bulut entegrasyonu kapsam dışı**: Sketchfab/Drive/Dropbox OAuth ve sunucu tarafı gerektirir;
+  Glbify'nin çekirdek vaadi (istemci tarafı, gizlilik, çevrimdışı çalışma) ile bağdaşmıyor.
+  Paylaşım yerine ayar linki + profil kodu kullanılıyor.
+
+### 🧪 Doğrulama
+
+- Vitest 59/59, CLI 5/5, desktop 3/3, Puppeteer e2e 36/36
+- e2e kapsamı: dil değişimi (TR↔EN), profil kodu yazma/uygulama, worker'da OBJ+MTL doku aktarımı
+  (ImageBitmap), materyal paneli, undo/redo, sahne ayarları, salt görüntüleme modu, çevrimdışı
+
 ## [3.0.0] - 2026-09-27
 
 ### ✨ Eklenenler

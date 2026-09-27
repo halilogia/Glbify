@@ -1,6 +1,6 @@
 {
   "name": "glbify",
-  "version": "3.0.0",
+  "version": "3.2.0",
   "workspaces": [
     "packages/*"
   ],
@@ -16,8 +16,10 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:cli": "node --test \"packages/cli/test/cli.test.js\"",
+    "test:desktop": "node --test \"packages/desktop/test/desktop.test.js\"",
     "test:e2e": "node tests/e2e/app.spec.mjs",
     "glbify": "node packages/cli/bin/glbify.js",
+    "glbify:desktop": "electron packages/desktop",
     "postinstall": "node scripts/sync-decoders.mjs"
   },
   "dependencies": {

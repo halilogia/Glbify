@@ -1,3 +1,4 @@
+import { t } from '../i18n/index.js';
 import { setDisabled, setHidden, setText } from '../utils/dom.js';
 import { setSettings } from '../utils/store.js';
 
@@ -102,7 +103,7 @@ export function createExportPanel({ elements, settings, onExport, onUnitScaleCha
         const ratio = Number(simplifyRatio.value) || 0;
         setText(
             simplifyValue,
-            ratio > 0 ? `vertex %${Math.round(ratio * 100)}'ini koru` : 'Kapalı',
+            ratio > 0 ? t('export.simplifyKeep', { percent: Math.round(ratio * 100) }) : t('export.simplifyOff'),
         );
     }
 
@@ -138,6 +139,30 @@ export function createExportPanel({ elements, settings, onExport, onUnitScaleCha
 
     return {
         getOptions,
+        applyOptions(options) {
+            const apply = (select, value) => {
+                if (value === undefined || value === null) return;
+                if ([...select.options].some((option) => option.value === String(value))) select.value = String(value);
+            };
+
+            apply(scaleSelect, options.scale);
+            apply(textureSelect, options.textureSize);
+            apply(textureFormat, options.textureFormat);
+            apply(dracoLevel, options.dracoLevel);
+            apply(limitSelect, options.maxFileMB);
+
+            if (options.textureQuality !== undefined) textureQuality.value = String(options.textureQuality);
+            if (options.draco !== undefined) dracoToggle.checked = Boolean(options.draco);
+            if (options.meshopt !== undefined) meshoptToggle.checked = Boolean(options.meshopt);
+            if (options.weld !== undefined) weldToggle.checked = Boolean(options.weld);
+            if (options.ktx2 !== undefined) ktx2Toggle.checked = Boolean(options.ktx2);
+            if (options.simplifyRatio !== undefined) simplifyRatio.value = String(options.simplifyRatio);
+
+            syncQuality();
+            syncSimplify();
+            syncCompression();
+            persist();
+        },
 
         setEnabled(enabled) {
             buttonList.forEach((button) => setDisabled(button, !enabled));
@@ -168,7 +193,7 @@ export function createExportPanel({ elements, settings, onExport, onUnitScaleCha
 
         showProgress(visible) {
             setHidden(exportProgress, !visible);
-            if (visible) this.setProgress(0, 'Hazırlanıyor...');
+            if (visible) this.setProgress(0, t('export.preparing'));
         },
 
         setProgress(ratio, label) {

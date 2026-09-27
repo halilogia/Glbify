@@ -42,7 +42,8 @@
                         <p class="text-[10px] text-gray-500 font-bold tracking-widest mt-1">FBX · GLB · OBJ · STL · USDZ</p>
                     </div>
                 </div>
-                <p class="text-[10px] text-gray-600 font-mono mt-2">v<span id="app-version">2.0.0</span> · çift tıklayarak kamerayı sıfırla</p>
+                <p class="text-[10px] text-gray-600 font-mono mt-2">v<span id="app-version">3.0.0</span><span
+                        data-i18n="app.hint"> · çift tıklayarak kamerayı sıfırla</span></p>
 
                 <div id="badges" class="flex flex-wrap items-center gap-2 mt-3">
                     <span id="net-badge"
@@ -54,38 +55,46 @@
                             <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
                             <span class="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
                         </span>
-                        <span id="anim-label">Animasyon</span>
+                        <span id="anim-label" data-i18n="model.animation">Animasyon</span>
                     </span>
 
-                    <button id="btn-install" type="button" class="badge badge-brand hidden items-center gap-1.5">
+                    <button id="btn-install" type="button" class="badge badge-brand hidden items-center gap-1.5"
+                        data-i18n="app.install">
                         Uygulamayı kur
                     </button>
                 </div>
 
                 <div class="flex items-center gap-3 mt-3">
-                    <button id="btn-share" type="button" class="text-[10px] text-gray-500 hover:text-green-400 transition">
+                    <select id="language-select" class="custom-select py-0.5 px-1 text-[11px]" aria-label="Dil">
+                        <option value="tr">TR</option>
+                        <option value="en">EN</option>
+                    </select>
+                    <button id="btn-share" type="button"
+                        class="text-[10px] text-gray-500 hover:text-green-400 transition" data-i18n="app.share">
                         Ayar linkini kopyala
                     </button>
                     <span class="text-gray-700">·</span>
-                    <button id="btn-cache" type="button" class="text-[10px] text-gray-500 hover:text-green-400 transition">
+                    <button id="btn-cache" type="button"
+                        class="text-[10px] text-gray-500 hover:text-green-400 transition" data-i18n="app.cache">
                         Önbellek: hesaplanıyor...
                     </button>
                 </div>
 
                 <div id="file-info" class="hidden mt-4 pt-4 border-t border-gray-800">
-                    <span class="text-gray-500 text-[10px] uppercase font-bold tracking-widest">Yüklü Model</span>
+                    <span class="text-gray-500 text-[10px] uppercase font-bold tracking-widest" data-i18n="model.title">Yüklü
+                        Model</span>
                     <div id="filename-display" class="font-mono text-green-400 font-medium text-base truncate">model.fbx</div>
                     <dl class="mt-3 grid grid-cols-3 gap-2 text-center">
                         <div class="stat-chip">
-                            <dt>Mesh</dt>
+                            <dt data-i18n="model.meshes">Mesh</dt>
                             <dd id="stat-meshes">0</dd>
                         </div>
                         <div class="stat-chip">
-                            <dt>Vertex</dt>
+                            <dt data-i18n="model.vertices">Vertex</dt>
                             <dd id="stat-vertices">0</dd>
                         </div>
                         <div class="stat-chip">
-                            <dt>Üçgen</dt>
+                            <dt data-i18n="model.triangles">Üçgen</dt>
                             <dd id="stat-triangles">0</dd>
                         </div>
                     </dl>
@@ -123,7 +132,7 @@
                         </label>
                         <label class="flex items-center gap-2 text-[11px] text-gray-400 cursor-pointer">
                             <input type="checkbox" id="anim-loop" class="toggle" checked>
-                            <span>Döngü</span>
+                            <span data-i18n="anim.loop">Döngü</span>
                         </label>
                     </div>
                 </div>
@@ -143,68 +152,78 @@
 
         <aside id="side-panel" class="side-panel hidden" aria-label="Araçlar">
             <div class="side-tabs" role="tablist">
-                <button type="button" class="side-tab is-active" data-panel="materials" role="tab">Materyal</button>
-                <button type="button" class="side-tab" data-panel="scene" role="tab">Sahne</button>
-                <button type="button" class="side-tab" data-panel="system" role="tab">Sistem</button>
+                <button type="button" class="side-tab is-active" data-panel="materials" role="tab" data-i18n="tool.materials">Materyal</button>
+                <button type="button" class="side-tab" data-panel="scene" role="tab" data-i18n="tool.scene">Sahne</button>
+                <button type="button" class="side-tab" data-panel="system" role="tab" data-i18n="tool.system">Sistem</button>
             </div>
 
             <div id="panel-materials" class="side-body">
-                <p id="materials-empty" class="side-hint">Model yüklenince materyaller burada listelenir.</p>
+                <p id="materials-empty" class="side-hint" data-i18n="drop.materialEmpty">Model yüklenince materyaller burada listelenir.</p>
                 <div id="material-list" class="flex flex-col gap-2"></div>
             </div>
 
             <div id="panel-scene" class="side-body hidden">
                 <label class="field">
-                    <span>Environment yoğunluğu: <b id="env-value" class="text-green-400">1.00</b></span>
+                    <span data-i18n="scene.environment">Environment yoğunluğu</span>: <b id="env-value" class="text-green-400">1.00</b></span>
                     <input type="range" id="env-intensity" class="timeline" min="0" max="3" step="0.05" value="1">
                 </label>
                 <label class="field">
-                    <span>Ana ışık: <b id="key-value" class="text-green-400">2.2</b></span>
+                    <span data-i18n="scene.key">Ana ışık</span>: <b id="key-value" class="text-green-400">2.2</b></span>
                     <input type="range" id="key-intensity" class="timeline" min="0" max="6" step="0.1" value="2.2">
                 </label>
                 <label class="field">
-                    <span>Dolgu ışığı: <b id="fill-value" class="text-green-400">0.55</b></span>
+                    <span data-i18n="scene.fill">Dolgu ışığı</span>: <b id="fill-value" class="text-green-400">0.55</b></span>
                     <input type="range" id="fill-intensity" class="timeline" min="0" max="3" step="0.05" value="0.55">
                 </label>
                 <label class="field">
-                    <span>Pozlama: <b id="exposure-value" class="text-green-400">1.00</b></span>
+                    <span data-i18n="scene.exposure">Pozlama</span>: <b id="exposure-value" class="text-green-400">1.00</b></span>
                     <input type="range" id="exposure" class="timeline" min="0.2" max="2.5" step="0.05" value="1">
                 </label>
                 <label class="field">
-                    <span>Arka plan</span>
+                    <span data-i18n="scene.background">Arka plan</span>
                     <input type="color" id="background" class="color-input" value="#0b0b0f">
                 </label>
                 <label class="flex items-center gap-2 text-xs text-gray-300 cursor-pointer">
                     <input type="checkbox" id="grid-toggle" class="toggle" checked>
-                    <span>Izgara görünür</span>
+                    <span data-i18n="scene.grid">Izgara görünür</span>
+                </label>
+                <label class="field">
+                    <span data-i18n="scene.profile">Sıkıştırma profili</span>
+                    <div class="flex items-center gap-2">
+                        <input type="text" id="profile-input" class="custom-select flex-1 min-w-0 py-1 text-[11px] font-mono"
+                            spellcheck="false" data-i18n-placeholder="scene.profilePlaceholder"
+                            placeholder="Profil kodunu yapıştır">
+                        <button id="btn-profile-copy" type="button" class="tool-btn shrink-0" data-i18n="scene.profileCopy">Kopyala</button>
+                        <button id="btn-profile-apply" type="button" class="tool-btn shrink-0" data-i18n="scene.profileImport">Uygula</button>
+                    </div>
                 </label>
             </div>
 
             <div id="panel-system" class="side-body hidden">
                 <div class="side-kv">
-                    <span>Renderer</span>
+                    <span data-i18n="system.renderer">Renderer</span>
                     <b id="renderer-backend">-</b>
                 </div>
                 <div class="side-kv">
-                    <span>WebGPU</span>
+                    <span data-i18n="system.webgpu">WebGPU</span>
                     <b id="cap-webgpu">-</b>
                 </div>
                 <div class="side-kv">
-                    <span>WebXR / AR</span>
+                    <span data-i18n="system.xr">WebXR / AR</span>
                     <b id="cap-xr">-</b>
                 </div>
                 <div class="side-kv">
-                    <span>Cihaz belleği</span>
+                    <span data-i18n="system.memory">Cihaz belleği</span>
                     <b id="cap-memory">-</b>
                 </div>
                 <label class="field">
-                    <span>Render backend</span>
+                    <span data-i18n="system.backend">Render backend</span>
                     <select id="renderer-mode" class="custom-select py-1 text-xs">
-                        <option value="webgl">WebGL2 (önerilen)</option>
-                        <option value="webgpu">WebGPU (deneysel)</option>
+                        <option value="webgl" data-i18n="system.backendWebgl">WebGL2 (önerilen)</option>
+                        <option value="webgpu" data-i18n="system.backendWebgpu">WebGPU (deneysel)</option>
                     </select>
                 </label>
-                <button id="btn-xr" type="button" class="tool-btn w-full">AR önizleme</button>
+                <button id="btn-xr" type="button" class="tool-btn w-full" data-i18n="system.xrStart">AR önizleme</button>
                 <p id="xr-hint" class="side-hint"></p>
             </div>
         </aside>
@@ -228,13 +247,15 @@
                         </path>
                     </svg>
                 </div>
-                <h2 class="text-3xl font-bold mb-2 text-white">Modelini Bırak</h2>
-                <p class="text-sm text-gray-400 mb-6 font-light">Glbify senin için dönüştürsün ve göstersin.</p>
+                <h2 class="text-3xl font-bold mb-2 text-white" data-i18n="drop.title">Modelini Bırak</h2>
+                <p class="text-sm text-gray-400 mb-6 font-light" data-i18n="drop.subtitle">Glbify senin için dönüştürsün
+                    ve göstersin.</p>
 
                 <input type="file" id="file-input" class="hidden" multiple
                     accept=".fbx,.glb,.gltf,.obj,.mtl,.stl,.ply,.3mf,.usdz,.usd,.usda,.usdc,.png,.jpg,.jpeg,.webp,.tga,.bmp,model/gltf-binary,model/gltf+json,model/stl,model/obj,application/octet-stream">
                 <button id="btn-browse" type="button"
-                    class="btn-primary text-white px-8 py-4 rounded-xl font-bold text-lg w-full shadow-xl">Dosya Seç</button>
+                    class="btn-primary text-white px-8 py-4 rounded-xl font-bold text-lg w-full shadow-xl"
+                    data-i18n="drop.browse">Dosya Seç</button>
 
                 <div class="mt-6 flex flex-col gap-3">
                     <div class="flex justify-center gap-3 text-[10px] text-gray-600 font-bold uppercase tracking-widest">
@@ -249,7 +270,7 @@
                     </div>
                     <p class="text-[10px] text-gray-600">OBJ + MTL + doku dosyalarını birlikte bırakabilirsin.</p>
                     <label class="flex items-center justify-center gap-2 text-[11px] text-gray-500">
-                        <span>Dosya limiti</span>
+                        <span data-i18n="drop.limit">Dosya limiti</span>
                         <select id="limit-select" class="custom-select py-1 text-[11px]">
                             <option value="128">128 MB</option>
                             <option value="256">256 MB</option>
@@ -263,14 +284,15 @@
 
             <div id="loading-content" class="hidden w-full">
                 <div class="spinner"></div>
-                <h3 id="loading-label" class="text-xl font-bold text-white mb-1">Glbify İşliyor...</h3>
-                <p id="loading-hint" class="text-sm text-gray-400 mb-5">Dosya okunuyor</p>
+                <h3 id="loading-label" class="text-xl font-bold text-white mb-1" data-i18n="drop.working">Glbify
+                    İşliyor...</h3>
+                <p id="loading-hint" class="text-sm text-gray-400 mb-5" data-i18n="drop.reading">Dosya okunuyor</p>
                 <div class="progress-track">
                     <div id="loading-bar" class="progress-bar" style="width:0%"></div>
                 </div>
                 <div class="flex items-center justify-between mt-2">
                     <p id="loading-percent" class="text-[11px] text-gray-500 font-mono">0%</p>
-                    <button id="btn-cancel" type="button" class="tool-btn">İptal</button>
+                    <button id="btn-cancel" type="button" class="tool-btn" data-i18n="drop.cancel">İptal</button>
                 </div>
             </div>
         </section>
@@ -281,26 +303,26 @@
 
                 <div class="flex flex-wrap items-center gap-3 w-full">
                     <div class="seg" role="group" aria-label="Dönüştürme aracı">
-                        <button type="button" data-transform="translate" class="is-active">Hareket</button>
-                        <button type="button" data-transform="rotate">Döndür</button>
-                        <button type="button" data-transform="scale">Ölçek</button>
+                        <button type="button" data-transform="translate" class="is-active" data-i18n="tool.translate">Hareket</button>
+                        <button type="button" data-transform="rotate" data-i18n="tool.rotate">Döndür</button>
+                        <button type="button" data-transform="scale" data-i18n="tool.scale">Ölçek</button>
                     </div>
 
                     <div class="text-[10px] text-gray-500 font-mono" id="transform-readout">0, 0, 0</div>
 
                     <div class="flex items-center gap-2 ml-auto">
-                        <button id="btn-frame" type="button" class="tool-btn">Çerçevele</button>
-                        <button id="btn-transform-reset" type="button" class="tool-btn">Sıfırla</button>
+                        <button id="btn-frame" type="button" class="tool-btn" data-i18n="tool.frame">Çerçevele</button>
+                        <button id="btn-transform-reset" type="button" class="tool-btn" data-i18n="tool.transformReset">Sıfırla</button>
                     </div>
                 </div>
 
                 <details id="advanced-options" class="w-full">
-                    <summary class="options-summary">Gelişmiş ayarlar (birim, doku, DRACO)</summary>
+                    <summary class="options-summary" data-i18n="export.advanced">Gelişmiş ayarlar (birim, doku, DRACO)</summary>
 
                     <div class="flex flex-col gap-4 items-center w-full pt-4">
                         <div class="grid gap-3 w-full sm:grid-cols-2">
                             <label class="field">
-                                <span>Hedef Yazılım / Birim</span>
+                                <span data-i18n="export.software">Hedef Yazılım / Birim</span>
                                 <select id="scale-selector" class="custom-select">
                                     <option value="1">Blender / Unity / Godot (Metre - 1x)</option>
                                     <option value="100">3ds Max / Unreal Engine (Santimetre - 100x)</option>
@@ -310,9 +332,9 @@
                             </label>
 
                             <label class="field">
-                                <span>Doku Çözünürlüğü</span>
+                                <span data-i18n="export.resolution">Doku Çözünürlüğü</span>
                                 <select id="texture-selector" class="custom-select">
-                                    <option value="0">Dokuları gömme (en küçük)</option>
+                                    <option value="0" data-i18n="export.resolutionNone">Dokuları gömme (en küçük)</option>
                                     <option value="2048">2K (varsayılan)</option>
                                     <option value="4096" selected>4K (orijinal)</option>
                                 </select>
@@ -321,17 +343,17 @@
 
                         <div class="grid gap-3 w-full sm:grid-cols-2">
                             <label class="field">
-                                <span>Doku Formatı</span>
+                                <span data-i18n="export.format">Doku Formatı</span>
                                 <select id="texture-format" class="custom-select">
-                                    <option value="original">Orijinal (PNG)</option>
-                                    <option value="png">PNG (kayıpsız)</option>
-                                    <option value="jpeg">JPEG (küçük)</option>
-                                    <option value="webp">WebP (dengeli)</option>
+                                    <option value="original" data-i18n="export.formatOriginal">Orijinal (PNG)</option>
+                                    <option value="png" data-i18n="export.formatPng">PNG (kayıpsız)</option>
+                                    <option value="jpeg" data-i18n="export.formatJpeg">JPEG (küçük)</option>
+                                    <option value="webp" data-i18n="export.formatWebp">WebP (dengeli)</option>
                                 </select>
                             </label>
 
                             <label class="field" id="quality-field">
-                                <span>Kalite: <span id="quality-value" class="text-green-400">0.92</span></span>
+                                <span data-i18n="export.quality">Kalite</span>: <span id="quality-value" class="text-green-400">0.92</span></span>
                                 <input type="range" id="texture-quality" class="timeline" min="0.4" max="1" step="0.02"
                                     value="0.92">
                             </label>
@@ -340,32 +362,32 @@
                         <div class="flex flex-wrap items-center gap-4 w-full">
                             <label class="flex items-center gap-2 text-xs text-gray-300 cursor-pointer">
                                 <input type="checkbox" id="invert-normals" class="toggle">
-                                <span>Normal map yönünü ters çevir</span>
+                                <span data-i18n="export.invertNormals">Normal map yönünü ters çevir</span>
                             </label>
 
                             <label class="flex items-center gap-2 text-xs text-gray-300 cursor-pointer">
                                 <input type="checkbox" id="generate-normals" class="toggle">
-                                <span>Diffuse'dan normal haritası üret</span>
+                                <span data-i18n="export.generateNormals">Diffuse&apos;dan normal haritası üret</span>
                             </label>
 
                             <label class="flex items-center gap-2 text-xs text-gray-300 cursor-pointer">
                                 <input type="checkbox" id="usdz-quicklook" class="toggle">
-                                <span>USDZ: Quick Look uyumlu (kare kare)</span>
+                                <span data-i18n="export.quickLook">USDZ: Quick Look uyumlu (kare kare)</span>
                             </label>
                         </div>
 
                         <div class="flex flex-wrap items-center gap-3 w-full border-t border-gray-700/70 pt-4">
                             <label class="flex items-center gap-2 text-sm text-gray-300 cursor-pointer">
                                 <input type="checkbox" id="draco-toggle" class="toggle" checked>
-                                <span>DRACO sıkıştırma</span>
+                                <span data-i18n="export.draco">DRACO sıkıştırma</span>
                             </label>
 
                             <label class="field w-auto" id="draco-level-field">
-                                <span>Kalite</span>
+                                <span data-i18n="export.qualityLevel">Kalite</span>
                                 <select id="draco-level" class="custom-select py-1 text-xs">
-                                    <option value="high">Yüksek</option>
-                                    <option value="balanced" selected>Dengeli</option>
-                                    <option value="max">Maksimum sıkıştırma</option>
+                                    <option value="high" data-i18n="export.levelHigh">Yüksek</option>
+                                    <option value="balanced" selected data-i18n="export.levelBalanced">Dengeli</option>
+                                    <option value="max" data-i18n="export.levelMax">Maksimum sıkıştırma</option>
                                 </select>
                             </label>
 
@@ -386,11 +408,11 @@
                                 <div class="flex items-center gap-4 py-1">
                                     <label class="flex items-center gap-2 text-xs text-gray-300 cursor-pointer">
                                         <input type="checkbox" id="weld-toggle" class="toggle" checked>
-                                        <span>Vertex birleştir</span>
+                                        <span data-i18n="export.weld">Vertex birleştir</span>
                                     </label>
                                     <label class="flex items-center gap-2 text-xs text-gray-300 cursor-pointer">
                                         <input type="checkbox" id="ktx2-toggle" class="toggle">
-                                        <span>KTX2 doku</span>
+                                        <span data-i18n="export.ktx2">KTX2 doku</span>
                                     </label>
                                 </div>
                             </label>
@@ -412,7 +434,7 @@
                         </svg>
                         <span class="text-left">
                             <span class="block text-[10px] font-normal opacity-80 uppercase tracking-wider">Önerilen</span>
-                            <span class="block text-sm">GLB İndir</span>
+                            <span class="block text-sm" data-i18n="export.glb">GLB İndir</span>
                         </span>
                     </button>
 
@@ -427,7 +449,7 @@
                         </svg>
                         <span class="text-left">
                             <span class="block text-[10px] font-normal opacity-60 uppercase tracking-wider">Apple / AR</span>
-                            <span class="block text-sm">USDZ İndir</span>
+                            <span class="block text-sm" data-i18n="export.usdz">USDZ İndir</span>
                         </span>
                     </button>
 
@@ -442,7 +464,7 @@
                         </svg>
                         <span class="text-left">
                             <span class="block text-[10px] font-normal opacity-60 uppercase tracking-wider">3B Baskı</span>
-                            <span class="block text-sm">STL İndir</span>
+                            <span class="block text-sm" data-i18n="export.stl">STL İndir</span>
                         </span>
                     </button>
 
@@ -457,7 +479,7 @@
                         </svg>
                         <span class="text-left">
                             <span class="block text-[10px] font-normal opacity-60 uppercase tracking-wider">Geometri</span>
-                            <span class="block text-sm">OBJ İndir</span>
+                            <span class="block text-sm" data-i18n="export.obj">OBJ İndir</span>
                         </span>
                     </button>
                 </div>

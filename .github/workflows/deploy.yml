@@ -34,6 +34,9 @@ jobs:
             - name: CLI tests
               run: npm run test:cli
 
+            - name: Desktop shell tests
+              run: npm run test:desktop
+
     e2e:
         runs-on: ubuntu-latest
         steps:

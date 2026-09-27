@@ -1,3 +1,4 @@
+import { t } from '../i18n/index.js';
 import { setHidden, setText, toggleClass } from '../utils/dom.js';
 import { formatBytes, formatCount, formatDimensions } from '../utils/format.js';
 
@@ -59,14 +60,14 @@ export function createHud(elements) {
         setAudit(report) {
             const issues = report?.issues?.length ?? 0;
             toggleClass(auditButton, 'hidden', issues === 0);
-            if (issues) setText(auditButton, `Doku denetimi: ${issues} uyarı`);
+            if (issues) setText(auditButton, t('model.audit', { count: issues }));
         },
 
         setAnimation(count) {
             const active = count > 0;
             toggleClass(animBadge, 'hidden', !active);
             if (active) {
-                setText(animLabel, count === 1 ? 'Animasyon' : `${count} animasyon`);
+                setText(animLabel, count === 1 ? t('model.animation') : t('model.animations', { count }));
             }
         },
 

@@ -1,9 +1,10 @@
 import { setDisabled, setHidden, setText, toggleClass } from '../utils/dom.js';
+import { t } from '../i18n/index.js';
 import { TEXTURE_SLOTS, describeMaterial, listMaterials } from '../io/materialEditor.js';
 
 const PANELS = ['materials', 'scene', 'system'];
 
-export function createSidePanel({ elements, onSelectMaterial, onPatchMaterial, onSceneChange, onRendererChange, onXR }) {
+export function createSidePanel({ elements, onSelectMaterial, onPatchMaterial, onSceneChange, onRendererChange, onXR, onProfile }) {
     const {
         sidePanel,
         materialList,
@@ -18,6 +19,9 @@ export function createSidePanel({ elements, onSelectMaterial, onPatchMaterial, o
         xrButton,
         xrHint,
         sceneInputs,
+        profileInput,
+        profileCopy,
+        profileApply,
     } = elements;
 
     let entries = [];
@@ -32,11 +36,13 @@ export function createSidePanel({ elements, onSelectMaterial, onPatchMaterial, o
     }
 
     for (const [key, input] of Object.entries(sceneInputs)) {
-        input.addEventListener('input', () => onSceneChange(key, Number(input.value)));
+        input.addEventListener('input', () => onSceneChange(key, key === 'gridToggle' ? input.checked : Number(input.value)));
     }
 
     rendererMode.addEventListener('change', () => onRendererChange(rendererMode.value));
     xrButton.addEventListener('click', () => onXR());
+    profileCopy.addEventListener('click', () => onProfile({ action: 'copy' }));
+    profileApply.addEventListener('click', () => onProfile({ action: 'apply', code: profileInput.value }));
 
     return {
         setVisible(visible) {
@@ -60,7 +66,7 @@ export function createSidePanel({ elements, onSelectMaterial, onPatchMaterial, o
             setText(capXr, capabilities.xr ? 'var' : 'yok');
             setText(capMemory, capabilities.deviceMemoryGB ? `${capabilities.deviceMemoryGB} GB` : 'bilinmiyor');
             setDisabled(rendererMode, !capabilities.webgpu && capabilities.webgpuReason.includes('desteklemiyor'));
-            setText(xrHint, capabilities.xr ? '' : 'Bu cihazda WebXR oturumu yok.');
+            setText(xrHint, capabilities.xr ? '' : t('system.xrUnavailable'));
             setDisabled(xrButton, !capabilities.xr);
             rendererMode.value = backend === 'webgpu' ? 'webgpu' : 'webgl';
         },
@@ -104,8 +110,8 @@ export function createSidePanel({ elements, onSelectMaterial, onPatchMaterial, o
             card.appendChild(color);
 
             for (const [key, label] of [
-                ['roughness', 'Roughness'],
-                ['metalness', 'Metalness'],
+                ['roughness', t('scene.roughness')],
+                ['metalness', t('scene.metalness')],
             ]) {
                 const wrapper = document.createElement('label');
                 wrapper.className = 'field';

@@ -480,7 +480,43 @@ async function main() {
         check('salt goruntuleme modu (atlandi: dev)', true, '');
     }
 
-    // 17) Cevrimdisi yukleme (yalnizca uretim modunda)
+    // 17) Dil degisimi ve sikistirma profili
+    const language = await page.evaluate(async () => {
+        const select = document.querySelector('#language-select');
+        select.value = 'en';
+        select.dispatchEvent(new Event('change', { bubbles: true }));
+        await new Promise((resolve) => setTimeout(resolve, 300));
+        const english = {
+            title: document.querySelector('[data-i18n="drop.title"]').textContent,
+            glb: document.querySelector('[data-i18n="export.glb"]').textContent,
+            lang: document.documentElement.lang,
+        };
+        select.value = 'tr';
+        select.dispatchEvent(new Event('change', { bubbles: true }));
+        await new Promise((resolve) => setTimeout(resolve, 300));
+        return { english, turkish: document.querySelector('[data-i18n="drop.title"]').textContent };
+    });
+    check(
+        'i18n TR/EN gecisi',
+        language.english.title === 'Drop your model' && language.turkish === 'Modelini Bırak' && language.english.lang === 'en',
+        JSON.stringify(language),
+    );
+
+    const profile = await page.evaluate(async () => {
+        document.querySelector('#btn-profile-copy').click();
+        await new Promise((resolve) => setTimeout(resolve, 300));
+        const code = document.querySelector('#profile-input').value;
+        const select = document.querySelector('#scale-selector');
+        select.value = '1';
+        select.dispatchEvent(new Event('change', { bubbles: true }));
+        document.querySelector('#profile-input').value = code;
+        document.querySelector('#btn-profile-apply').click();
+        await new Promise((resolve) => setTimeout(resolve, 300));
+        return { codeLength: code.length, scale: select.value };
+    });
+    check('sikistirma profili yazildi/uygulandi', profile.codeLength > 4 && profile.scale !== '1', JSON.stringify(profile));
+
+    // 18) Cevrimdisi yukleme (yalnizca uretim modunda)
     if (isDev) {
         check('cevrimdisi sayfa yuklendi (atlandi: dev modu)', true, 'dev modunda SW kaydedilmiyor');
     } else {

@@ -61,6 +61,7 @@ Rules:
 - UI panels stay in normal document flow; absolutely positioned overlays swallow clicks once the header
   grows.
 - `src/config.js` and `src/utils/**` must stay importable in Node (unit tests run without a DOM).
+- User-facing strings go through `src/i18n` (`t()` for dynamic, `data-i18n` for static markup).
 
 ## 📂 5. Project Layout
 
@@ -128,10 +129,12 @@ experimental/on-demand and are cached at runtime instead.
   materials, importer registry, estimates, share links, history, scene settings, material editor).
   No DOM required.
 - `npm run test:cli` — `node:test` suite for `@glbify/cli` (inspect, DRACO, meshopt, convert).
+- `npm run test:desktop` — `node:test` suite for the Electron shell (dist path + file URL resolution).
 - `npm run test:e2e` — Puppeteer harness over `npm run preview`; `GLBY_BASE_URL` selects the address.
   Covers loaders, worker parsing, all four exporters, DRACO/Meshopt/KTX2 verification inside the
   produced GLB, animation transport, gizmo, unit scaling, material editing, undo/redo, scene
-  settings, system panel, frame stepping, view-only mode, share link, memory guard, offline reload
+  settings, system panel, frame stepping, view-only mode, share link, memory guard, offline reload,
+  language switching (TR/EN) and compression profile copy/apply
   and console cleanliness. Dev-mode runs skip the service worker and offline assertions.
 - Fixtures are committed under `tests/fixtures/`; the `.gitignore` model-extension rules are negated
   for that directory.

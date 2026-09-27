@@ -34,12 +34,33 @@ function groupFromGeometry(geometry, name) {
 async function tryWorker(extension, buffer, context = {}) {
     if (!context.useWorker) return null;
     try {
-        return await parseInWorker(WORKER_IMPORT[extension], buffer, { signal: context.signal });
+        return await parseInWorker(WORKER_IMPORT[extension], buffer, {
+            signal: context.signal,
+            mtl: context.mtl,
+            textures: context.textures,
+        });
     } catch (error) {
         if (error?.name === 'AbortError') throw error;
         console.warn(`[glbify] worker ayrıştırması başarısız, ana iş parçacığı kullanılıyor: ${error.message}`);
         return null;
     }
+}
+
+async function buildTextureUrls(mtlFile, files) {
+    if (!mtlFile) return [];
+    const source = await mtlFile.text();
+    const references = new Set();
+    for (const match of source.matchAll(TEXTURE_DIRECTIVES)) {
+        references.add(match[2].replace(/^["']|["']$/g, '').split(/[\\/]/).pop().toLowerCase());
+    }
+
+    const entries = [];
+    for (const file of files) {
+        if (file === mtlFile) continue;
+        if (!references.has(file.name.toLowerCase())) continue;
+        entries.push({ name: file.name, dataUrl: await blobToDataUrl(file) });
+    }
+    return entries;
 }
 
 async function buildMtlLibrary(source, siblingFiles) {
@@ -97,7 +118,12 @@ const obj = {
     async parse(buffer, context = {}) {
         const files = context.files ?? [];
         const mtlFile = files.find((file) => /\.mtl$/i.test(file.name));
-        const worker = await tryWorker('obj', buffer, { ...context, useWorker: context.useWorker && !mtlFile });
+        const worker = await tryWorker('obj', buffer, {
+            ...context,
+            useWorker: context.useWorker,
+            mtl: mtlFile ? await mtlFile.text() : '',
+            textures: await buildTextureUrls(mtlFile, files),
+        });
         if (worker) return worker;
 
         let materials = null;

@@ -108,10 +108,35 @@ precache and cached on first use instead.
   WebGL2'ye düşüp düşmediğimiz anlaşılır.
 - `setAnimationLoop`, `setSize`, `outputColorSpace`, `toneMapping`, `xr` her iki build'de de var.
 
+## 🌐 Worker'da Doku Çözme
+
+- Worker ortamında `document`/`Image` yok; `src/io/workerImageShim.js` bunları
+  `createImageBitmap` tabanlı bir `WorkerImage` ile değiştirir. three'ın `ImageLoader` yapısı
+  `addEventListener` beklediği için shim tam bir olay hedefi sunar.
+- `MTLLoader().parse()` bir `MaterialCreator` döndürür; three r186'da `.load()` **yoktur** —
+  dokular `create()`/`getAsArray()` sırasında yüklenmeye başlar. Worker'da `preload()` +
+  `getAsArray()` çağrılır, sonra tüm doku slotları `texture.image.image` (bitmap) dolana kadar
+  beklenir (zaman aşımlı).
+- Doku görüntüleri `ImageBitmap` olarak `postMessage` transfer listesine eklenir; ana iş
+  parçacığında `new Texture(bitmap)` ile yeniden kurulur.
+- OBJ + MTL + doku dosyaları birlikte bırakıldığında MTL metni **data URL**'lerle yamalanır
+  (`buildTextureUrls` sadece MTL'de geçen dosyaları data URL'e çevirir).
+- Üç.js `TextureLoader`, görsel yüklenene kadar `texture.image`'ı null bırakır; "bekliyor" kontrolü
+  `!texture.image?.image` ile yapılmalıdır.
+
+## 🌍 i18n
+
+- `src/i18n/index.js`: `LANGUAGES` sözlükleri, `t(key, vars)`, `applyTranslations(root)`.
+- Statik metinler `data-i18n`, `data-i18n-title`, `data-i18n-aria`, `data-i18n-placeholder`
+  ile işaretlenir; dinamik mesajlar doğrudan `t()` çağırır.
+- `setLanguage()` `<html lang>` değerini günceller ve `localStorage`'a yazar; her iki sözlükte
+  anahtar kümesi eşit olmalı (birim testi denetler).
+
 ## 🧪 Testing
 
 - `npm test` — Vitest, `tests/unit/**`, node environment (no DOM).
 - `npm run test:cli` — `node:test`, `packages/cli/test/**`.
+- `npm run test:desktop` — `node:test`, `packages/desktop/test/**` (yol/URL çevirisi).
 - `npm run test:e2e` — Puppeteer against `npm run preview`; `GLBY_BASE_URL` overrides the address.
   Dev-mode runs skip the service worker and offline assertions.
 - Fixtures live in `tests/fixtures/` and are committed; the `.gitignore` model extensions are

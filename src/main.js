@@ -37,11 +37,13 @@ import { createDropZone } from './ui/dropzone.js';
 import { createExportPanel } from './ui/exportPanel.js';
 import { createHud } from './ui/hud.js';
 import { createSidePanel } from './ui/sidePanel.js';
+import { applyTranslations, getLanguage, initLanguage, setLanguage, t } from './i18n/index.js';
 import { notify, toast } from './ui/toast.js';
 import { $, nextFrame, setDisabled, setText, toggleClass } from './utils/dom.js';
 import { extensionOf, formatBytes, sanitizeBaseName } from './utils/format.js';
 import { getSettings, setSettings } from './utils/store.js';
 import { buildShareUrl, readSettingsFromUrl } from './utils/share.js';
+import { decodeProfile, encodeProfile, summarizeProfile } from './utils/profile.js';
 
 const urlSettings = readSettingsFromUrl();
 const viewOnly = urlSettings.view === '1' || new URLSearchParams(location.search).get('view') === '1';
@@ -85,6 +87,7 @@ const elements = {
     installButton: $('#btn-install'),
     shareButton: $('#btn-share'),
     cacheButton: $('#btn-cache'),
+    languageSelect: $('#language-select'),
     sidePanel: $('#side-panel'),
     materialList: $('#material-list'),
     materialsEmpty: $('#materials-empty'),
@@ -113,7 +116,11 @@ const elements = {
         fillIntensity: $('#fill-intensity'),
         exposure: $('#exposure'),
         background: $('#background'),
+        gridToggle: $('#grid-toggle'),
     },
+    profileInput: $('#profile-input'),
+    profileCopy: $('#btn-profile-copy'),
+    profileApply: $('#btn-profile-apply'),
     sceneValues: {
         envIntensity: $('#env-value'),
         keyIntensity: $('#key-value'),
@@ -184,7 +191,7 @@ class GlbifyApp {
             renderer: graphics.renderer,
             backend: graphics.backend,
             PMREMGenerator: graphics.PMREMGenerator,
-            onContextLost: () => notify.error('Grafik bağlamı kayboldu. Sayfayı yenileyin.'),
+            onContextLost: () => notify.error(t('toast.contextLost')),
         });
 
         this.capabilities = await detectCapabilities();
@@ -224,12 +231,14 @@ class GlbifyApp {
             onSceneChange: (key, value) => this.changeSceneSetting(key, value),
             onRendererChange: (mode) => this.changeRenderer(mode),
             onXR: () => this.startXR(),
+            onProfile: (request) => this.handleProfile(request),
         });
         this.sidePanel.setCapabilities({ backend: graphics.backend, capabilities: this.capabilities });
 
         this.bindTransformTools();
         this.bindAnimationTools();
         this.bindEditTools();
+        this.bindLanguage();
         this.applyViewOnly();
         this.applySceneSettings();
 
@@ -276,6 +285,23 @@ class GlbifyApp {
         });
     }
 
+    bindLanguage() {
+        initLanguage();
+        elements.languageSelect.value = getLanguage();
+        elements.languageSelect.addEventListener('change', (event) => {
+            setLanguage(event.target.value);
+            this.hud.setAudit(this.audit);
+            this.refreshEstimate();
+            this.renderHistory(this.history.info());
+            this.renderAnimation({
+                playing: this.animator?.playing ?? false,
+                time: this.animator?.time ?? 0,
+                duration: this.animator?.duration ?? 0,
+            });
+        });
+        applyTranslations();
+    }
+
     applyViewOnly() {
         if (!this.viewOnly) return;
         toggleClass(elements.controls, 'hidden', true);
@@ -302,6 +328,7 @@ class GlbifyApp {
 
     changeSceneSetting(key, value) {
         if (key === 'background') this.sceneSettings.background = elements.sceneInputs.background.value;
+        else if (key === 'gridToggle') this.sceneSettings.gridVisible = Boolean(value);
         else this.sceneSettings[key] = value;
 
         if (elements.sceneValues[key]) {
@@ -320,9 +347,31 @@ class GlbifyApp {
     async startXR() {
         try {
             await this.viewer.startXR('immersive-ar');
-            notify.info('AR oturumu başlatılıyor...');
+            notify.info(t('toast.xrStarting'));
         } catch (error) {
             notify.warning(error.message);
+        }
+    }
+
+    async handleProfile({ action, code }) {
+        if (action === 'copy') {
+            const profileCode = encodeProfile(this.exportPanel.getOptions());
+            elements.profileInput.value = profileCode;
+            try {
+                await navigator.clipboard.writeText(profileCode);
+                notify.success(t('scene.profileCopied'));
+            } catch {
+                notify.info(profileCode);
+            }
+            return;
+        }
+
+        try {
+            const options = decodeProfile(code);
+            this.exportPanel.applyOptions(options);
+            notify.success(t('scene.profileApplied', { summary: summarizeProfile(options) }));
+        } catch (error) {
+            notify.warning(`${t('scene.profileInvalid')} (${error.message})`);
         }
     }
 
@@ -398,7 +447,7 @@ class GlbifyApp {
                     },
                 );
             },
-            onOfflineReady: () => notify.success('Çevrimdışı kullanıma hazır.'),
+            onOfflineReady: () => notify.success(t('toast.offlineReady')),
             onError: (error) => console.warn('Service worker kaydedilemedi:', error),
         });
 
@@ -418,7 +467,7 @@ class GlbifyApp {
             () => {
                 elements.installButton.classList.add('hidden');
                 elements.installButton.classList.remove('inline-flex');
-                notify.success('Glbify masaüstüne kuruldu.');
+                notify.success(t('toast.installed'));
             },
         );
 
@@ -426,7 +475,7 @@ class GlbifyApp {
             if (!deferred) return;
             deferred.prompt();
             const choice = await deferred.userChoice;
-            if (choice.outcome === 'accepted') notify.success('Kurulum başlatıldı.');
+            if (choice.outcome === 'accepted') notify.success(t('toast.installing'));
             deferred = null;
             elements.installButton.classList.add('hidden');
             elements.installButton.classList.remove('inline-flex');
@@ -436,23 +485,23 @@ class GlbifyApp {
     async refreshCacheInfo() {
         const usage = await getStorageUsage();
         if (!usage) {
-            setText(elements.cacheButton, 'Önbellek: desteklenmiyor');
+            setText(elements.cacheButton, t('app.cache.unknown'));
             return;
         }
-        setText(elements.cacheButton, `Önbellek: ${formatBytes(usage.usage)} · tıkla ve temizle`);
+        setText(elements.cacheButton, t('app.cache.clear', { size: formatBytes(usage.usage) }));
     }
 
     async clearCache() {
         const removed = await clearCaches();
         await this.refreshCacheInfo();
-        notify.success(`${removed} önbellek silindi. Sayfa yenilenince yeniden indirilir.`);
+        notify.success(t('toast.cachesCleared', { count: removed }));
     }
 
     async copyShareLink() {
         const url = buildShareUrl(this.exportPanel.getOptions());
         try {
             await navigator.clipboard.writeText(url);
-            notify.success('Ayar linki panoya kopyalandı.');
+            notify.success(t('scene.shareLink'));
         } catch {
             notify.info(`Ayar linki: ${url}`);
         }
@@ -491,7 +540,10 @@ class GlbifyApp {
     }
 
     renderTransformReadout(snapshot) {
-        setText(elements.transformReadout, `${modeLabel(this.transform.mode)} · ${snapshot.position.join(', ')}`);
+        setText(elements.transformReadout, t('tool.readout', {
+            mode: modeLabel(this.transform.mode),
+            position: snapshot.position.join(', '),
+        }));
         this.viewer.updateGround();
     }
 
@@ -510,7 +562,10 @@ class GlbifyApp {
         });
 
         this.exportPanel.setEstimate(
-            `· Tahmini çıktı: ~${formatEstimate(bytes)}${textures.length ? ` (${textures.length} doku)` : ''}`,
+            t('export.estimate', {
+                size: formatEstimate(bytes),
+                textures: textures.length ? t('export.estimateTextures', { count: textures.length }) : '',
+            }),
         );
     }
 
@@ -523,7 +578,7 @@ class GlbifyApp {
 
         if (!importer) {
             notify.error(
-                `".${extension || '?'}" formatı desteklenmiyor. Desteklenenler: ${ACCEPTED_EXTENSIONS.join(', ')}`,
+                `${t('drop.unsupported')}: ".${extension || '?'}". ${ACCEPTED_EXTENSIONS.join(', ')}`,
             );
             return;
         }
@@ -534,7 +589,7 @@ class GlbifyApp {
         this.busy = true;
         this.abortController = new AbortController();
         this.hud.showDropZone(true);
-        this.hud.setLoading(true, 'Dosya okunuyor', `${primary.name} · ${formatBytes(primary.size)}`);
+        this.hud.setLoading(true, t('drop.reading'), `${primary.name} · ${formatBytes(primary.size)}`);
         this.hud.setProgress(0);
 
         const limitBytes = this.exportPanel.getOptions().maxFileMB * MB;
@@ -554,15 +609,11 @@ class GlbifyApp {
                 onProgress: ({ ratio }) => this.hud.setProgress(ratio * 0.5),
             });
 
-            this.hud.setProgress(0.55, 'Model ayrıştırılıyor', `${importer.label} · bu birkaç saniye sürebilir`);
+            this.hud.setProgress(0.55, t('drop.parse'), `${importer.label} · bu birkaç saniye sürebilir`);
             await nextFrame();
 
             const useWorker =
-                this.settings.workerParse &&
-                isWorkerParseSupported(extension, {
-                    hasAuxiliaryFiles: rest.length > 0,
-                    size: primary.size,
-                });
+                this.settings.workerParse && isWorkerParseSupported(extension, { size: primary.size });
 
             const result = await importer.parse(buffer, {
                 extension,
@@ -572,7 +623,7 @@ class GlbifyApp {
                 signal: this.abortController.signal,
             });
 
-            this.hud.setProgress(0.85, 'Sahne hazırlanıyor', 'Materyaller ve ölçek hesaplanıyor');
+            this.hud.setProgress(0.85, t('drop.preparing'), t('drop.preparingHint'));
             await nextFrame();
 
             result.notes?.forEach((note) => notify.info(note));
@@ -615,16 +666,16 @@ class GlbifyApp {
             this.warnAboutModel(primary, stats, extension);
         } catch (error) {
             if (error?.name === 'AbortError') {
-                notify.info('Yükleme iptal edildi.');
+                notify.info(t('toast.cancelled'));
             } else {
                 if (!(error instanceof FileLimitError) && !(error instanceof EmptyFileError)) console.error(error);
-                const prefix =
-                    error instanceof FileLimitError
-                        ? 'Dosya limiti aşıldı'
-                        : error instanceof EmptyFileError
-                          ? 'Dosya boş'
-                          : 'Yükleme başarısız';
-                notify.error(`${prefix}: ${error.message}`);
+            const prefix =
+                error instanceof FileLimitError
+                    ? t('toast.limit', { message: '' }).replace(/: $/, '')
+                    : error instanceof EmptyFileError
+                      ? t('toast.empty', { message: '' }).replace(/: $/, '')
+                      : t('toast.failed', { message: '' }).replace(/: $/, '');
+            notify.error(`${prefix}: ${error.message}`);
             }
             this.reset();
             this.hud.setLoading(false);
@@ -636,7 +687,7 @@ class GlbifyApp {
 
     async applyStandaloneMtl(file, siblings) {
         if (!this.model) {
-            notify.warning('MTL dosyası için önce OBJ modeli yükleyin.');
+            notify.warning(t('toast.noModel'));
             return;
         }
 
@@ -647,13 +698,13 @@ class GlbifyApp {
             });
             const applied = applyMtlLibrary(this.model, result.materials);
             if (!applied) {
-                notify.warning('MTL eşleşen materyal bulunamadı. OBJ dosyasında "usemtl" adları eşleşmiyor.');
+                notify.warning(t('toast.mtlNoMatch'));
                 return;
             }
             prepareModel(this.model);
             this.audit = auditColorSpaces(this.model);
             this.hud.setAudit(this.audit);
-            notify.success(`MTL uygulandı: ${applied} mesh · ${result.notes[0] ?? ''}`);
+            notify.success(t('toast.mtlApplied', { count: applied, detail: result.notes[0] ?? '' }));
         } catch (error) {
             notify.error(`MTL uygulanamadı: ${error.message}`);
         }
@@ -682,7 +733,7 @@ class GlbifyApp {
         );
         elements.animSpeed.value = '1';
         elements.animLoop.checked = true;
-        setText(elements.clipCount, `${clips.length} klip`);
+        setText(elements.clipCount, t('model.clipCount', { count: clips.length }));
         elements.animPanel.classList.remove('hidden');
         this.hud.setAnimation(clips.length);
         this.renderAnimation({ playing: animator.playing, time: 0, duration: animator.duration });
@@ -693,7 +744,10 @@ class GlbifyApp {
         elements.animPlay.title = playing ? 'Duraklat' : 'Oynat';
         if (Number(elements.animTimeline.max) !== duration) elements.animTimeline.max = String(duration || 1);
         elements.animTimeline.value = String(time ?? 0);
-        setText(elements.animTime, `${(time ?? 0).toFixed(2)}s / ${(duration ?? 0).toFixed(2)}s`);
+        setText(
+            elements.animTime,
+            t('anim.time', { time: (time ?? 0).toFixed(2), duration: (duration ?? 0).toFixed(2) }),
+        );
     }
 
     warnAboutModel(file, stats, extension) {
@@ -707,15 +761,19 @@ class GlbifyApp {
         }
 
         if (extension === 'gltf') {
-            notify.warning('.gltf dış kaynakları (bin/doku) tarayıcıdan okunamaz. GLB olarak dışa aktarın.');
+            notify.warning(t('toast.gltfWarning'));
         }
 
         if (stats.hasUnindexedGeometry) {
-            notify.warning('Modelde indekslenmemiş geometri var. GLB/DRACO çıktısı daha büyük olabilir.');
+            notify.warning(t('toast.unindexed'));
         }
 
         if (stats.triangles > 2_000_000) {
-            notify.warning(`${stats.triangles.toLocaleString('tr-TR')} üçgen: düşük cihazlarda FPS düşebilir.`);
+            notify.warning(
+                t('toast.highTriangles', {
+                    count: stats.triangles.toLocaleString(getLanguage() === 'tr' ? 'tr-TR' : 'en-US'),
+                }),
+            );
         }
     }
 
@@ -723,7 +781,7 @@ class GlbifyApp {
         if (!this.audit) return;
         const { textures, issues } = this.audit;
         if (!issues.length) {
-            notify.info(`Doku denetimi temiz: ${textures} doku, uyarı yok.`);
+            notify.info(t('toast.auditClean', { count: textures }));
             return;
         }
         notify.warning(`Doku denetimi: ${issues.length} uyarı\n${issues.slice(0, 4).join('\n')}`, { timeout: 12_000 });
@@ -756,7 +814,7 @@ class GlbifyApp {
             output.warnings?.forEach((warning) => notify.warning(warning));
         } catch (error) {
             console.error(error);
-            notify.error(`${exporter.label} dışa aktarılamadı: ${error.message}`);
+            notify.error(t('toast.exportFailed', { label: exporter.label, message: error.message }));
         } finally {
             this.busy = false;
             this.exportPanel.setBusy(false);
@@ -767,8 +825,8 @@ class GlbifyApp {
     describeExport(format, output, draco) {
         const compressed = draco && format === 'glb' && output.uncompressedSize > output.size;
         const saved = compressed ? Math.round((1 - output.size / output.uncompressedSize) * 100) : 0;
-        const suffix = saved > 0 ? ` · DRACO ile %${saved} küçüldü` : '';
-        return `${output.fileName} indirildi (${formatBytes(output.size)})${suffix}`;
+        const suffix = saved > 0 ? ` · ${t('toast.saved', { percent: saved })}` : '';
+        return `${t('toast.exported', { file: output.fileName, size: formatBytes(output.size) })}${suffix}`;
     }
 
     reset() {
