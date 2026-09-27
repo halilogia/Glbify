@@ -72,9 +72,17 @@ Tüm önemli değişiklikler bu dosyada belgelenir.
 
 ### ⏸️ Ertelenenler
 
-- **FBX yazma**: tarayıcıda çalışan bir FBX yazıcı yok; OBJ/STL/USDZ çıktıları tercih ediliyor
-- **Doku atlaslama**: three.js ve glTF-Transform'da UV paketleyici bulunmuyor; ayrı bir
-  araştırma gerektiriyor
+- **FBX yazma** — tarayıcıda çalışan bir FBX yazıcı yok; OBJ/STL/USDZ çıktıları tercih ediliyor.
+  v3.0 "Format yazma" başlığına taşındı.
+- **Doku atlaslama** — three.js ve glTF-Transform'da UV paketleyici bulunmuyor; ayrı bir
+  araştırma gerektiriyor. v2.2 "Optimizasyon" başlığına taşındı.
+- **USDZ Quick Look cihaz testi** — paket yapısı, kök dosya ve animasyon karesi sayımı otomatik
+  doğrulanıyor; iOS/macOS cihazında açılış kontrolü elle yapılacak.
+
+### 🗂️ ROADMAP Durumu
+
+v2.1 bölümündeki tüm maddeler tamamlandı ve bu sürüm notuna taşındı. ROADMAP.md yalnızca
+v2.2, v3.0 ve değerlendirme aşamasındaki açık işleri içerir.
 
 ### ✅ Doğrulama
 

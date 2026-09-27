@@ -1,19 +1,9 @@
 # Roadmap 🗺️
 
-Glbify için bundan sonra izlenecek yol. Tamamlanan işler [CHANGELOG.md](CHANGELOG.md) içinde kayıtlıdır;
-bu dosya yalnızca **yapılacakları** içerir.
+Glbify için bundan sonra izlenecek yol. Bu dosya **yalnızca yapılacakları** içerir; tamamlanan
+işler [CHANGELOG.md](CHANGELOG.md) dosyasında kayıtlıdır.
 
 > Sürüm: v2.1.0 sonrası plan · Güncelleme: 2026-09-27
-
-## ✅ Tamamlanan: v2.1 — Dönüştürme Derinliği
-
-Bölümün tamamı tamamlandı (bkz. CHANGELOG 2.1.0). İki kalem gerekçesiyle ertelendi:
-
-- **FBX yazma** — tarayıcıda çalışan FBX yazıcı yok; OBJ/STL/USDZ çıktıları tercih ediliyor
-- **Doku atlaslama** — three.js ve glTF-Transform'da UV paketleyici yok, ayrı araştırma gerekli
-
-USDZ Quick Look doğrulamasının cihaz üzerindeki (iOS/macOS) son adımı elle yapılacak;
-otomatik kısmı ZIP/`.usda`/doku/kare denetimiyle tamamlandı.
 
 ---
 
@@ -25,12 +15,12 @@ otomatik kısmı ZIP/`.usda`/doku/kare denetimiyle tamamlandı.
 - [ ] Vertex birleştirme (weld) ve duplicate temizliği (dedup)
 - [ ] KTX2 / Basis Universal doku sıkıştırma (`KHR_texture_basisu`)
 - [ ] `EXT_meshopt_compression` çıktı seçeneği
-- [ ] Quantization preset'leri ve çıktı boyutu tahmini (export öncesi)
-- [ ] Doku atlaslama (UV packer araştırması)
+- [ ] Quantization preset'leri ve export öncesi çıktı boyutu tahmini
+- [ ] Doku atlaslama — UV packer yok, kütüphane araştırması gerekiyor
 
 ### Büyük dosya performansı
 
-- [ ] Ayrıştırmayı Web Worker'a taşıma (FBX/OBJ/STL; doku taşıma gerekiyor)
+- [ ] Ayrıştırmayı Web Worker'a taşıma (FBX/OBJ/STL; doku taşıma maliyeti ölçülmeli)
 - [ ] Streaming tabanlı yükleme ve iptal (cancel) desteği
 - [ ] Bellek bütçesi takibi ve düşük bellek cihazlarda otomatik limit düşürme
 - [ ] İlerleme raporunun parse aşamasına taşınması (üçgen sayısı bazlı)
@@ -39,9 +29,9 @@ otomatik kısmı ZIP/`.usda`/doku/kare denetimiyle tamamlandı.
 
 - [ ] Vitest ile birim testleri (importers, exporters, material dönüşümü, istatistikler)
 - [ ] Playwright ile uçtan uca testler
-- [ ] Mevcut headless Chrome kontrol betiğini depoya taşı (`tests/` klasörü) ve CI'a bağla
+- [ ] Headless Chrome kontrol betiğini depoya taşırma (`tests/`) — şu an geçici olarak elle çalıştırılıyor
 - [ ] GitHub Actions'da test + build + Pages dağıtımı tek akışta
-- [ ] Sürüm bazlı smoke test: örnek modeller (küçük/orta/büyük) fixture klasörü
+- [ ] Fixture klasörü: küçük/orta/büyük örnek modeller (FBX, animasyonlu GLB, dokulu OBJ)
 
 ### PWA
 
@@ -65,7 +55,7 @@ otomatik kısmı ZIP/`.usda`/doku/kare denetimiyle tamamlandı.
 - [ ] Materyal editörü (PBR parametreleri, doku atama)
 - [ ] Işık ve environment ayarları, HDR environment yükleme
 - [ ] Model düzenleme geçmişi (undo/redo)
-- [ ] Gezinme/animasyon için kamera kısayolları (kare atla, döngü bölgesi)
+- [ ] Kamera ve animasyon kısayolları (kare atlama, döngü bölgesi)
 
 ### Toplu işleme
 
@@ -74,12 +64,16 @@ otomatik kısmı ZIP/`.usda`/doku/kare denetimiyle tamamlandı.
 - [ ] Preset kaydetme / yükleme (ölçek, doku, DRACO, format)
 - [ ] Komut satırı arayüzü: `@glbify/cli` (Node + headless three.js)
 
+### Format yazma
+
+- [ ] FBX yazma — tarayıcıda FBX yazıcı yok, üçüncü parti WASM kütüphane araştırması
+- [ ] USD (USDA/USDC) yazma
+
 ### Entegrasyon
 
 - [ ] Sketchfab / Google Drive / Dropbox bağlantısı
 - [ ] Paylaşılabilir link ile model önizleme (salt görüntüleme modu)
 - [ ] Çevrimiçi çok dilli arayüz (TR/EN), i18n altyapısı
-- [ ] FBX yazma (üçüncü parti WASM kütüphane araştırması)
 
 ---
 
@@ -94,8 +88,10 @@ otomatik kısmı ZIP/`.usda`/doku/kare denetimiyle tamamlandı.
 
 ## 📌 Öncelik Notları
 
-1. **Web Worker** yaklaşımı doku taşıma maliyeti nedeniyle ayrı bir araştırma gerektiriyor;
+1. **Test altyapısı** (Vitest + Playwright) v2.2'nin ilk işi: doğrulama şu an depoda olmayan,
+   elle kurulan headless Chrome betiğiyle yapılıyor.
+2. **Web Worker** yaklaşımı doku taşıma maliyeti nedeniyle ayrı bir araştırma gerektiriyor;
    önce ölçüm yapılacak.
-2. **Test altyapısı** (Vitest + Playwright) v2.2'nin ilk işi: şu an doğrulama elle kurulan
-   headless Chrome betiğiyle yapılıyor ve depoda tutulmuyor.
-3. Her sürüm `CHANGELOG.md` ve `README.md` güncellenerek taglenir.
+3. **USDZ Quick Look** cihaz üzerindeki (iOS/macOS) son kontrol adımı elle yapılmalı; paketin
+   yapısal doğrulaması otomatik.
+4. Her sürüm `CHANGELOG.md` ve `README.md` güncellenerek taglenir.
